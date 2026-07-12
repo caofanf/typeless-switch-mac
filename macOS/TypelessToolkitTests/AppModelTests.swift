@@ -406,6 +406,106 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(client.acknowledgeVersionCallCount, 1)
     }
 
+    func testPreferencesPersistMenuBarWindowRefreshAndNotificationChoices() {
+        let defaults = isolatedDefaults()
+        let preferences = AppPreferences(defaults: defaults)
+
+        preferences.showsMenuBarExtra = false
+        preferences.quitAfterLastWindowClosed = false
+        preferences.refreshOnActivation = false
+        preferences.notificationsEnabled = true
+
+        let restored = AppPreferences(defaults: defaults)
+        XCTAssertFalse(restored.showsMenuBarExtra)
+        XCTAssertFalse(restored.quitAfterLastWindowClosed)
+        XCTAssertFalse(restored.refreshOnActivation)
+        XCTAssertTrue(restored.notificationsEnabled)
+        XCTAssertFalse(AppDelegate(preferences: restored).applicationShouldTerminateAfterLastWindowClosed(NSApplication.shared))
+    }
+
+    func testForegroundRefreshHonorsPreference() async {
+        let defaults = isolatedDefaults()
+        let preferences = AppPreferences(defaults: defaults)
+        preferences.refreshOnActivation = false
+        let client = MockCoreClient()
+        let model = AppModel(coreClient: client, preferences: preferences)
+
+        await model.handleAppBecameActive()
+        XCTAssertEqual(client.getOverviewCallCount, 0)
+
+        preferences.refreshOnActivation = true
+        await model.handleAppBecameActive()
+        XCTAssertEqual(client.getOverviewCallCount, 1)
+    }
+
+    func testRecentActivityKeepsLatestOneHundredAndCanBeCleared() {
+        let store = RecentActivityStore(defaults: isolatedDefaults())
+
+        for index in 0..<105 {
+            store.record(title: "活动 \(index)", detail: nil, kind: .information)
+        }
+
+        XCTAssertEqual(store.activities.count, 100)
+        XCTAssertEqual(store.activities.first?.title, "活动 104")
+        XCTAssertEqual(store.activities.last?.title, "活动 5")
+
+        store.clear()
+        XCTAssertTrue(store.activities.isEmpty)
+    }
+
+    func testCompletedTaskRecordsActivityAndNotificationWhenEnabled() async {
+        let preferences = AppPreferences(defaults: isolatedDefaults())
+        preferences.notificationsEnabled = true
+        let store = RecentActivityStore(defaults: isolatedDefaults())
+        let notifications = MockNotificationCenter()
+        let client = MockCoreClient()
+        client.syncTask = .init(
+            id: "sync-complete",
+            type: "dictionaries.syncAll",
+            state: .succeeded,
+            cancellable: false,
+            progress: nil,
+            result: nil,
+            error: nil
+        )
+        let model = AppModel(
+            coreClient: client,
+            preferences: preferences,
+            activityStore: store,
+            notificationCenter: notifications
+        )
+
+        await model.syncAllDictionaries()
+
+        XCTAssertEqual(model.recentActivities.first?.title, "同步全部词库完成")
+        XCTAssertEqual(notifications.delivered.map(\.title), ["同步全部词库完成"])
+    }
+
+    func testDebugLoggingIsSessionOnlyAndActivityLimitIsApplied() {
+        let defaults = isolatedDefaults()
+        let preferences = AppPreferences(defaults: defaults)
+        preferences.diagnosticLogLevel = .debug
+        preferences.recentActivityLimit = 25
+
+        let restarted = AppPreferences(defaults: defaults)
+        XCTAssertEqual(restarted.diagnosticLogLevel, .info)
+        XCTAssertEqual(restarted.recentActivityLimit, 25)
+
+        let store = RecentActivityStore(defaults: isolatedDefaults())
+        store.updateLimit(25)
+        for index in 0..<30 {
+            store.record(title: "活动 \(index)", detail: nil, kind: .information)
+        }
+        XCTAssertEqual(store.activities.count, 25)
+    }
+
+    private func isolatedDefaults() -> UserDefaults {
+        let suite = "TypelessToolkitTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        return defaults
+    }
+
     private func makeConfirmation(summary: JSONValue) -> Confirmation {
         Confirmation(token: "confirm-1", expiresAt: Date(timeIntervalSince1970: 4_000_000_000), summary: summary)
     }

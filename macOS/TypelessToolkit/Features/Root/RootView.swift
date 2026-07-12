@@ -59,12 +59,13 @@ struct RootView: View {
         case .advancedTools:
             AdvancedToolsView(model: model)
         case .settings:
-            PlaceholderView(title: "设置", message: "调整启动、窗口和菜单栏行为。", systemImage: "gearshape")
+            SettingsView(model: model)
         }
     }
 
     private func refreshWhileActive() async {
-        await model.refreshOverview()
+        await model.handleAppBecameActive()
+        guard model.preferences.refreshOnActivation else { return }
         let clock = ContinuousClock()
         while !Task.isCancelled {
             do {
@@ -72,7 +73,7 @@ struct RootView: View {
             } catch {
                 return
             }
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, model.preferences.refreshOnActivation else { return }
             await model.refreshOverview()
         }
     }

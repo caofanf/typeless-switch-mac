@@ -153,10 +153,38 @@ final class AppModel {
     private(set) var isPerformingAdvancedOperation = false
     private var dictionaryTaskIDsByAccount: [String: String] = [:]
 
+    let preferences: AppPreferences
     private let coreClient: any CoreClientProtocol
+    private let activityStore: RecentActivityStore
+    private let notificationCenter: any AppNotificationDelivering
 
-    init(coreClient: any CoreClientProtocol) {
+    var recentActivities: [RecentActivity] { activityStore.activities }
+
+    init(
+        coreClient: any CoreClientProtocol,
+        preferences: AppPreferences = .standard,
+        activityStore: RecentActivityStore? = nil,
+        notificationCenter: (any AppNotificationDelivering)? = nil
+    ) {
         self.coreClient = coreClient
+        self.preferences = preferences
+        self.activityStore = activityStore ?? RecentActivityStore(limit: preferences.recentActivityLimit)
+        self.notificationCenter = notificationCenter ?? SystemNotificationCenter()
+        self.activityStore.updateLimit(preferences.recentActivityLimit)
+    }
+
+    func handleAppBecameActive() async {
+        guard preferences.refreshOnActivation else { return }
+        await refreshOverview()
+    }
+
+    func setRecentActivityLimit(_ limit: Int) {
+        preferences.recentActivityLimit = limit
+        activityStore.updateLimit(preferences.recentActivityLimit)
+    }
+
+    func clearRecentActivities() {
+        activityStore.clear()
     }
 
     func establishConnection() async {
@@ -176,7 +204,7 @@ final class AppModel {
     func syncAllDictionaries() async {
         do {
             let task = try await coreClient.syncAllDictionaries()
-            upsertTask(task)
+            await upsertTask(task)
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = "无法开始同步。请稍后重试。"
@@ -393,7 +421,7 @@ final class AppModel {
                 _ = try await coreClient.addWord(terms[0], accountID: accountID)
             } else {
                 let outcome = try await coreClient.addWords(terms, accountID: accountID)
-                if case let .task(task) = outcome { upsertTask(task) }
+                if case let .task(task) = outcome { await upsertTask(task) }
             }
             accountDictionary = try await coreClient.accountDictionary(accountID: accountID)
             accountDictionaryAccountID = accountID
@@ -421,7 +449,7 @@ final class AppModel {
         do {
             let task = try await coreClient.syncAccountDictionary(accountID: accountID)
             dictionaryTaskIDsByAccount[accountID] = task.id
-            upsertTask(task)
+            await upsertTask(task)
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = "无法开始同步该账号的词库。"
@@ -514,6 +542,7 @@ final class AppModel {
         defer { isCreatingBackup = false }
         do {
             backupStatus = try await coreClient.createBackup()
+            activityStore.record(title: "手动备份已创建", detail: backupStatus.backupPath, kind: .success)
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = "无法创建备份。请确认数据目录可写。"
@@ -634,7 +663,7 @@ final class AppModel {
                 inspectionID: operation.inspection.inspectionID,
                 confirmationToken: operation.confirmation.token
             )
-            upsertTask(task)
+            await upsertTask(task)
             pendingBackupRestore = nil
             backupRestorePhase = task.state == .succeeded ? .completed : .restoring
         } catch let error as CoreError {
@@ -726,7 +755,7 @@ final class AppModel {
             case let .patch(action):
                 task = try await coreClient.applyPatch(action: action, confirmationToken: operation.confirmation.token)
             }
-            upsertTask(task)
+            await upsertTask(task)
             pendingAdvancedOperation = nil
         } catch {
             pendingAdvancedOperation = nil
@@ -739,11 +768,43 @@ final class AppModel {
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
     }
 
-    private func upsertTask(_ task: CoreTask) {
+    private func upsertTask(_ task: CoreTask) async {
+        let previousState: CoreTaskState?
         if let index = activeTasks.firstIndex(where: { $0.id == task.id }) {
+            previousState = activeTasks[index].state
             activeTasks[index] = task
         } else {
+            previousState = nil
             activeTasks.append(task)
+        }
+
+        guard task.state == .succeeded || task.state == .failed || task.state == .cancelled,
+              previousState != task.state else { return }
+
+        let title = taskActivityTitle(task)
+        let kind: RecentActivityKind = task.state == .succeeded ? .success : (task.state == .failed ? .failure : .warning)
+        let detail = task.progress?.message
+        activityStore.record(title: title, detail: detail, kind: kind)
+        if preferences.notificationsEnabled {
+            await notificationCenter.deliver(title: title, body: detail)
+        }
+    }
+
+    private func taskActivityTitle(_ task: CoreTask) -> String {
+        let operation: String
+        switch task.type {
+        case "dictionaries.syncAll", "sync-all": operation = "同步全部词库"
+        case "dictionaries.syncAccount", "sync-account": operation = "同步账号词库"
+        case "backup-restore": operation = "恢复备份"
+        case "device-reset": operation = "重置设备标识"
+        case "patch": operation = "应用 Typeless 补丁"
+        default: operation = "后台任务"
+        }
+        switch task.state {
+        case .succeeded: return "\(operation)完成"
+        case .failed: return "\(operation)失败"
+        case .cancelled: return "\(operation)已取消"
+        case .queued, .running: return operation
         }
     }
 

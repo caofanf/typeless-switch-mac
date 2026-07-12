@@ -3,7 +3,14 @@ import SwiftUI
 @main
 struct TypelessToolkitApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var model = AppModel(coreClient: UnavailableCoreClient())
+    @State private var preferences: AppPreferences
+    @State private var model: AppModel
+
+    init() {
+        let preferences = AppPreferences.standard
+        _preferences = State(initialValue: preferences)
+        _model = State(initialValue: AppModel(coreClient: UnavailableCoreClient(), preferences: preferences))
+    }
 
     var body: some Scene {
         WindowGroup("Typeless Toolkit", id: "main") {
@@ -16,7 +23,7 @@ struct TypelessToolkitApp: App {
             AppCommands(model: model)
         }
 
-        MenuBarExtra {
+        MenuBarExtra(isInserted: $preferences.showsMenuBarExtra) {
             MenuBarContent(model: model)
         } label: {
             Label("Typeless Toolkit", systemImage: menuBarSystemImage)

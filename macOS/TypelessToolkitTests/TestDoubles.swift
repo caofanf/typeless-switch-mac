@@ -61,9 +61,11 @@ final class MockCoreClient: CoreClientProtocol {
     private(set) var createBackupCallCount = 0
     private(set) var exportedBackupPaths: [String] = []
     private(set) var diagnosticsCallCount = 0
+    private(set) var getOverviewCallCount = 0
     private(set) var acknowledgeVersionCallCount = 0
 
     func getOverview() async throws -> SystemOverview {
+        getOverviewCallCount += 1
         if let overviewError { throw overviewError }
         return overview
     }
@@ -196,5 +198,19 @@ final class MockCoreClient: CoreClientProtocol {
     func syncAllDictionaries() async throws -> CoreTask {
         syncAllCallCount += 1
         return syncTask
+    }
+}
+
+@MainActor
+final class MockNotificationCenter: AppNotificationDelivering {
+    struct Delivered: Equatable {
+        let title: String
+        let body: String?
+    }
+
+    private(set) var delivered: [Delivered] = []
+
+    func deliver(title: String, body: String?) async {
+        delivered.append(.init(title: title, body: body))
     }
 }
