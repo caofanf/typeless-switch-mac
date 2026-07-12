@@ -1,86 +1,100 @@
 # Typeless Toolkit for macOS
 
-Typeless 桌面端的 macOS 本地管理工具。主入口是一个本地网页管理器,用于多账号保存、登录态切换、个人词库同步、设备 ID 重置,以及去升级/会员弹窗补丁。
+Typeless Toolkit 是面向 macOS 的 Typeless 本机管理工具，提供多账号保存与切换、个人词库同步、备份恢复、诊断、设备 ID 重置、版本漂移处理和本地补丁等能力。
 
-这是一个纯 Node.js 项目,不需要 `npm install`。默认只面向 macOS 版 Typeless。
+现在推荐使用 **Apple Silicon 原生 App**。它采用 SwiftUI 界面，内置固定版本的 Darwin `arm64` Node.js Sidecar；日常使用不需要浏览器、终端，也不要求系统安装 Node.js。原有 Web 管理器和 CLI 继续保留为 legacy 备用入口。
 
-## 先说流程
+## 原生 App
 
-日常使用只需要打开管理器。CLI 是备用入口,不是必需流程。
+### 使用要求
 
-新用户首次使用:
+- Apple Silicon（M 系列芯片），不支持 Intel Mac；
+- macOS 14 或更高版本；
+- 已安装 Typeless.app；
+- 首次打开未公证构建时，按 `release/README-FIRST.txt` 手动放行。
 
-1. 启动管理器。
-2. 在管理器里点「连接 Typeless」,建立识别当前登录账号所需的管理连接。如果 Typeless 已经普通启动,这里会自动重启一次。
-3. 在 Typeless 里登录一个账号。
-4. 回到管理器,点「添加当前账号」。
-5. 点「全部同步」,把这个账号的个人词库合并进本地主词库。
+### 安装与打开
 
-以后新增账号:
+从源码构建后会得到：
 
-1. 管理器不用关,保持开着即可。
-2. 在 Typeless 里退出/切换到新账号。
-3. 如果 Typeless 因设备限制不让继续登录或注册,再使用管理器里的「解除设备限制」。
-4. 登录成功后,回到管理器点「添加当前账号」。
-5. 点「全部同步」,让新账号和已有账号的词库对齐。
-
-以后切换账号:
-
-1. 打开管理器。
-2. 在账号卡片里点「切换到此号」。
-3. 管理器会还原该账号的登录态快照,并重启 Typeless。
-
-切换已保存账号不需要重置设备。设备 ID 重置只在新增账号、注册账号或重新登录时遇到 Typeless 设备限制才使用;它会清掉当前 Typeless 登录状态,不是日常切号步骤。
-
-管理器本质上是运行在本机的服务: `http://127.0.0.1:7788`。使用期间保持终端窗口开着即可;用完后可以在终端按 `Ctrl+C` 退出。
-
-顶部的「管理连接未开启」不表示 Typeless 账号掉线。账号卡片可以使用已保存 token 独立刷新;只有识别或抓取桌面端当前登录账号时才需要管理连接。点击「连接 Typeless」后,页面会等待连接成功并自动更新顶部状态。
-
-管理器每次启动都会生成一次性的本机会话密钥。除公开的 `/api/health` 外,所有 `/api/*` 请求都必须来自当前管理器页面并携带这个密钥;服务不开放 CORS。常规账号和抓取接口不会把 token 返回浏览器;只有用户主动确认「导出备份包」时,浏览器才会接收并保存包含 token 的备份文件。启动脚本通过 `/api/health` 的产品标识确认端口上运行的确实是本管理器。
-
-## 功能状态
-
-| 功能 | 入口 | 说明 |
-| --- | --- | --- |
-| 多账号管理 | 管理器 | 保存账号 token 和登录态快照 |
-| 登录态切换 | 管理器 | 从本地快照恢复账号状态 |
-| 个人词库同步 | 管理器 | 推荐使用「全部同步」 |
-| 单词增删 | 管理器 | 对单个账号操作 |
-| 设备 ID 重置 | 管理器 | 只在设备限制时使用 |
-| 去升级/会员弹窗 | 管理器 | 修改 Typeless.app 本地文件 |
-| Typeless 管理连接 | 管理器 / `.command` | 通过本地 CDP 识别和抓取当前登录账号 |
-| 词库同步 CLI | `.command` / JS | 可选备用,日常不需要 |
-
-## 快速开始
-
-要求:
-
-- macOS
-- Node.js 22+
-- 已安装 Typeless.app
-- 系统自带 `curl`, `security`, `codesign`, `PlistBuddy`
-
-推荐使用 `git clone`,它通常会保留 `.command` 的可执行权限。如果是从 GitHub `Download ZIP` 下载,确认来源可信后,首次运行前可在项目目录执行:
-
-```bash
-chmod +x *.command
-xattr -dr com.apple.quarantine . 2>/dev/null || true
+```text
+dist/Typeless Toolkit.app
+dist/Typeless-Toolkit-<version>-arm64.dmg
+dist/Typeless-Toolkit-<version>-arm64.dmg.sha256
 ```
 
-启动管理器:
+核对 `.sha256` 后打开 DMG，把 App 拖到“Applications”。由于开源自行构建版本只使用 ad-hoc 临时签名、未经过 Apple 公证，首次打开请在 Finder 中右键 App 选择“打开”；如仍被阻止，请前往“系统设置”→“隐私与安全性”选择“仍要打开”。
+
+完整的源码构建、签名、DMG 和故障诊断说明见 [`docs/native-macos-build.md`](docs/native-macos-build.md)。构建不要求 Apple Developer 账号。
+
+### 日常流程
+
+新用户首次使用：
+
+1. 打开 Typeless Toolkit。
+2. 在“概览”或“账号”中连接 Typeless；如果 Typeless 已普通启动，App 会按需重启并建立管理连接。
+3. 在 Typeless 中登录账号，再回到 Toolkit 添加当前账号。
+4. 打开“词库”，执行“全部同步”，把各账号个人词库与本地主词库对齐。
+
+以后切换账号时，在“账号”中选择目标账号并执行切换。Toolkit 会恢复对应登录态快照并重启 Typeless。设备 ID 重置只用于新增、注册或重新登录时遇到设备限制，不是日常切号步骤。
+
+### 原生功能
+
+| 功能 | 原生入口 | 说明 |
+| --- | --- | --- |
+| 状态概览 | 概览 / 菜单栏 | 当前账号、连接、备份、补丁、版本和任务状态 |
+| 多账号与快照 | 账号 | 保存账号、刷新、切换和删除本地快照 |
+| 个人词库 | 词库 | 主词库编辑、单账号同步和全部同步 |
+| 备份恢复 | 备份与恢复 | 本地备份、导出、导入和受保护恢复 |
+| 健康检查 | 诊断 | 脱敏的路径、连接、版本和恢复状态 |
+| 设备重置与补丁 | 高级工具 | 两阶段确认、任务进度、资源锁和失败恢复 |
+| 偏好与活动 | 设置 | 菜单栏、通知、刷新、活动历史和版本信息 |
+
+Swift 只接收脱敏 DTO；账号 token、Cookie 和 profile 不进入 Swift UI，始终由本机 Node 核心管理。App 与 Sidecar 通过 `stdin/stdout` 上的 JSON Lines / JSON-RPC 2.0 通信，不监听 localhost 端口。
+
+## 从源码构建原生 App
+
+先安装完整 Xcode，并完成首次初始化：
+
+```bash
+sudo xcodebuild -license accept
+sudo xcodebuild -runFirstLaunch
+```
+
+Release 构建、DMG 和验证：
+
+```bash
+scripts/build-release.sh
+scripts/package-dmg.sh
+scripts/verify-release.sh
+```
+
+默认构建脚本从 Node.js 官方地址下载固定的 Darwin `arm64` runtime 并校验 SHA-256。离线或本机开发时，可通过 `NODE_RUNTIME_PATH` 指向**同一固定版本**的 Mach-O `arm64` Node 可执行文件：
+
+```bash
+NODE_RUNTIME_PATH="$(command -v node)" scripts/build-debug.sh
+```
+
+详细要求和单独命令见 [`docs/native-macos-build.md`](docs/native-macos-build.md)。
+
+## Legacy Web 管理器与 CLI
+
+Web 管理器仍可用于兼容和排障，但已不是推荐日常入口。它需要 Node.js 22+，并在本机启动 `http://127.0.0.1:7788`：
 
 ```bash
 ./启动管理器.command
 ```
 
-如果管理器已经在运行,再次执行这个脚本只会打开已有页面。
-
-或者手动启动:
+也可以手动运行：
 
 ```bash
 node manager.js
 open http://127.0.0.1:7788
 ```
+
+管理器每次启动都会生成一次性本机会话密钥。除公开的 `/api/health` 外，所有 `/api/*` 请求都必须来自当前管理器页面并携带该密钥；服务不开放 CORS。常规账号和抓取接口不会把 token 返回浏览器，只有用户主动确认导出备份包时，浏览器才会接收包含秘密数据的备份文件。
+
+CLI 和 `.command` 文件保留为备用工具，原生 App 日常使用不依赖它们。
 
 ## 从旧版本升级
 

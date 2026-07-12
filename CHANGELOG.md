@@ -1,5 +1,37 @@
 # Changelog
 
+## native-macos-v1.0.0 - 2026-07-12
+
+### Added
+
+- 新增仅支持 Apple Silicon、最低 macOS 14 的 SwiftUI 原生 App，以概览、账号、词库、备份恢复、诊断、高级工具和设置提供完整管理体验。
+- 新增菜单栏入口、最近活动、系统通知，以及浅色/深色、高对比度、Reduce Motion 和 VoiceOver 基本适配。
+- 新增版本化 JSON Lines / JSON-RPC 2.0 Sidecar 协议；Swift 通过脱敏 DTO 与任务事件访问 Node 核心，不接触账号 token、Cookie 或 profile。
+- 新增固定 Node.js `v24.15.0` Darwin `arm64` runtime 的官方下载、SHA-256 校验和仅提取 `bin/node` 流程。
+- 新增 Debug、Release、ad-hoc 临时签名、未公证 UDZO DMG、SHA-256 和发布验证脚本。
+
+### Changed
+
+- 将 Web 管理器业务用例抽取为 UI 无关的 application service，由 legacy HTTP 管理器和原生 stdio Sidecar 共享。
+- 将原生 App 标记为推荐入口；Web 管理器、`.command` 和 CLI 继续作为兼容与排障入口。
+- 高风险写操作改为一次性两阶段确认，长任务统一使用任务 ID、进度事件与资源锁。
+
+### Security
+
+- Sidecar 不监听 localhost，`stdout` 只发送协议帧，运行日志写入 `stderr`。
+- 构建只复制明确允许的 Sidecar 与 `lib/*.js` 文件，并拒绝账号、配置、profile、备份、`.env` 和 Git 元数据进入 App bundle。
+- 发布验证检查主程序和 Node helper 的 `arm64` 架构、嵌套签名、`core.hello` 握手、DMG 安装布局和秘密数据路径。
+
+### Distribution
+
+- 采用开源项目自行构建方案，不要求 Apple Developer 账号。
+- App 和 DMG 使用 ad-hoc 临时签名且未公证；首次打开可能需要 Finder 右键“打开”或在“隐私与安全性”中手动放行。
+
+### Tests
+
+- Node 全量测试现包含 107 个测试；Swift 全量测试现包含 34 个测试。
+- 新增严格 Swift 并发与警告即错误构建，以及 Release App、Sidecar、签名、DMG 挂载和校验和验证。
+
 ## macos-v2.3.0 - 2026-07-10
 
 ### Security
