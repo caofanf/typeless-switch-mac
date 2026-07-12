@@ -41,3 +41,16 @@ test('capture handle hides token and is consumed by save', async () => {
     capture_id: capture.capture_id,
   }), error => error.code === 'CAPTURE_EXPIRED');
 });
+
+test('dictionaries.addWords trims and removes empty terms', async () => {
+  const calls = [];
+  const service = createApplicationService({ core: {
+    readAccounts: () => [{ user_id: 'u1', token: 't' }],
+    curlApi: async (...args) => { calls.push(args); return { data: { success_count: 2 } }; },
+  }});
+  const result = await service.execute('dictionaries.addWords', {
+    user_id: 'u1', terms: [' alpha ', '', 'beta'],
+  });
+  assert.equal(result.requested, 2);
+  assert.equal(calls[0][3].content, 'alpha\nbeta');
+});
