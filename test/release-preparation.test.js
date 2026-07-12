@@ -96,3 +96,13 @@ test('release pipeline entry points and first-open instructions are present', ()
   assert.match(instructions, /右键.*打开/);
   assert.match(instructions, /xattr -dr com\.apple\.quarantine/);
 });
+
+test('macOS bundle declares and packages the custom application icon', () => {
+  const infoPlist = fs.readFileSync(path.join(ROOT, 'macOS', 'TypelessToolkit', 'Info.plist'), 'utf8');
+  const project = fs.readFileSync(path.join(ROOT, 'macOS', 'TypelessToolkit.xcodeproj', 'project.pbxproj'), 'utf8');
+  const iconPath = path.join(ROOT, 'macOS', 'TypelessToolkit', 'AppIcon.icns');
+
+  assert.match(infoPlist, /<key>CFBundleIconFile<\/key>\s*<string>AppIcon<\/string>/);
+  assert.equal(fs.existsSync(iconPath), true, 'AppIcon.icns must exist');
+  assert.match(project, /AppIcon\.icns in Resources/);
+});
