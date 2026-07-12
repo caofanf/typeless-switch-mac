@@ -77,3 +77,22 @@ test('prepare-node-runtime rejects a non-Mach-O executable', () => {
   assert.match(`${result.stdout}${result.stderr}`, /Mach-O.*arm64|arm64.*Mach-O/);
   assert.equal(fs.existsSync(destination), false);
 });
+
+test('release pipeline entry points and first-open instructions are present', () => {
+  const requiredExecutables = [
+    'scripts/build-debug.sh',
+    'scripts/build-release.sh',
+    'scripts/package-dmg.sh',
+    'scripts/verify-release.sh',
+  ];
+  for (const relativePath of requiredExecutables) {
+    const absolutePath = path.join(ROOT, relativePath);
+    assert.equal(fs.existsSync(absolutePath), true, `${relativePath} must exist`);
+    assert.notEqual(fs.statSync(absolutePath).mode & 0o111, 0, `${relativePath} must be executable`);
+  }
+
+  const instructions = fs.readFileSync(path.join(ROOT, 'release', 'README-FIRST.txt'), 'utf8');
+  assert.match(instructions, /未公证/);
+  assert.match(instructions, /右键.*打开/);
+  assert.match(instructions, /xattr -dr com\.apple\.quarantine/);
+});
