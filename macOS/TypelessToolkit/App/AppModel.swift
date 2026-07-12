@@ -46,12 +46,39 @@ final class AppModel {
     private(set) var activeTasks: [CoreTask] = []
     private(set) var overview: SystemOverview = .empty
     private(set) var isRefreshing = false
+    private(set) var isStale = false
     private(set) var lastErrorMessage: String?
 
     private let coreClient: any CoreClientProtocol
 
     init(coreClient: any CoreClientProtocol) {
         self.coreClient = coreClient
+    }
+
+    func establishConnection() async {
+        guard connectionState != .connecting else { return }
+        connectionState = .connecting
+        lastErrorMessage = nil
+
+        do {
+            connectionState = try await coreClient.establishConnection().state
+            await refreshOverview()
+        } catch {
+            connectionState = .degraded
+            lastErrorMessage = "无法建立管理连接。请确认 Typeless 正在运行。"
+        }
+    }
+
+    func syncAllDictionaries() async {
+        do {
+            let task = try await coreClient.syncAllDictionaries()
+            if !activeTasks.contains(where: { $0.id == task.id }) {
+                activeTasks.append(task)
+            }
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法开始同步。请稍后重试。"
+        }
     }
 
     func refreshOverview() async {
@@ -63,8 +90,11 @@ final class AppModel {
             let latest = try await coreClient.getOverview()
             overview = latest
             connectionState = latest.connectionState
+            activeTasks = latest.activeTasks
+            isStale = false
             lastErrorMessage = nil
         } catch {
+            isStale = true
             lastErrorMessage = "无法刷新状态。请稍后重试。"
         }
     }

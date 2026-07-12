@@ -24,6 +24,11 @@
 		A1000000000000000000002F /* DictionaryModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000045 /* DictionaryModels.swift */; };
 		A10000000000000000000080 /* SystemModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000046 /* SystemModels.swift */; };
 		A10000000000000000000081 /* CoreClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000047 /* CoreClient.swift */; };
+		A10000000000000000000082 /* StatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000090 /* StatusView.swift */; };
+		A10000000000000000000083 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000091 /* EmptyStateView.swift */; };
+		A10000000000000000000084 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000092 /* OverviewView.swift */; };
+		A10000000000000000000085 /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000093 /* MenuBarContent.swift */; };
+		A10000000000000000000086 /* AppCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000094 /* AppCommands.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,6 +64,11 @@
 		A10000000000000000000045 /* DictionaryModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictionaryModels.swift; sourceTree = "<group>"; };
 		A10000000000000000000046 /* SystemModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemModels.swift; sourceTree = "<group>"; };
 		A10000000000000000000047 /* CoreClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreClient.swift; sourceTree = "<group>"; };
+		A10000000000000000000090 /* StatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusView.swift; sourceTree = "<group>"; };
+		A10000000000000000000091 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
+		A10000000000000000000092 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
+		A10000000000000000000093 /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
+		A10000000000000000000094 /* AppCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCommands.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -74,7 +84,7 @@
 		};
 		A10000000000000000000005 /* TypelessToolkit */ = {
 			isa = PBXGroup;
-			children = (A10000000000000000000008 /* App */, A1000000000000000000000B /* CoreIPC */, A1000000000000000000000C /* Domain */, A10000000000000000000009 /* Features */, A10000000000000000000036 /* Info.plist */, A10000000000000000000037 /* TypelessToolkit.entitlements */);
+			children = (A10000000000000000000008 /* App */, A1000000000000000000000B /* CoreIPC */, A1000000000000000000000C /* Domain */, A1000000000000000000000D /* DesignSystem */, A10000000000000000000009 /* Features */, A10000000000000000000036 /* Info.plist */, A10000000000000000000037 /* TypelessToolkit.entitlements */);
 			path = TypelessToolkit;
 			sourceTree = "<group>";
 		};
@@ -92,13 +102,13 @@
 		};
 		A10000000000000000000008 /* App */ = {
 			isa = PBXGroup;
-			children = (A10000000000000000000030 /* TypelessToolkitApp.swift */, A10000000000000000000031 /* AppDelegate.swift */, A10000000000000000000032 /* AppModel.swift */);
+			children = (A10000000000000000000030 /* TypelessToolkitApp.swift */, A10000000000000000000031 /* AppDelegate.swift */, A10000000000000000000032 /* AppModel.swift */, A10000000000000000000093 /* MenuBarContent.swift */, A10000000000000000000094 /* AppCommands.swift */);
 			path = App;
 			sourceTree = "<group>";
 		};
 		A10000000000000000000009 /* Features */ = {
 			isa = PBXGroup;
-			children = (A1000000000000000000000A /* Root */);
+			children = (A1000000000000000000000A /* Root */, A1000000000000000000000E /* Overview */);
 			path = Features;
 			sourceTree = "<group>";
 		};
@@ -112,6 +122,18 @@
 			isa = PBXGroup;
 			children = (A1000000000000000000003E /* Account.swift */, A1000000000000000000003F /* CoreError.swift */, A10000000000000000000044 /* CoreTask.swift */, A10000000000000000000045 /* DictionaryModels.swift */, A10000000000000000000046 /* SystemModels.swift */);
 			path = Domain;
+			sourceTree = "<group>";
+		};
+		A1000000000000000000000D /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (A10000000000000000000090 /* StatusView.swift */, A10000000000000000000091 /* EmptyStateView.swift */);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		A1000000000000000000000E /* Overview */ = {
+			isa = PBXGroup;
+			children = (A10000000000000000000092 /* OverviewView.swift */);
+			path = Overview;
 			sourceTree = "<group>";
 		};
 		A1000000000000000000000A /* Root */ = {
@@ -170,7 +192,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A10000000000000000000052 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000020, A10000000000000000000021, A10000000000000000000022, A10000000000000000000023, A10000000000000000000026, A10000000000000000000027, A10000000000000000000028, A10000000000000000000029, A1000000000000000000002C, A1000000000000000000002D, A1000000000000000000002E, A1000000000000000000002F, A10000000000000000000080, A10000000000000000000081); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000052 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000020, A10000000000000000000021, A10000000000000000000022, A10000000000000000000023, A10000000000000000000026, A10000000000000000000027, A10000000000000000000028, A10000000000000000000029, A1000000000000000000002C, A1000000000000000000002D, A1000000000000000000002E, A1000000000000000000002F, A10000000000000000000080, A10000000000000000000081, A10000000000000000000082, A10000000000000000000083, A10000000000000000000084, A10000000000000000000085, A10000000000000000000086); runOnlyForDeploymentPostprocessing = 0; };
 		A10000000000000000000053 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000024, A10000000000000000000025, A1000000000000000000002A, A1000000000000000000002B); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 

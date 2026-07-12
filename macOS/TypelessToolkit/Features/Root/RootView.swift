@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @Bindable var model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationSplitView {
@@ -15,26 +16,38 @@ struct RootView: View {
             destinationView
                 .navigationTitle(model.selection.title)
                 .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        if model.connectionState != .connected {
+                            Button {
+                                Task { await model.establishConnection() }
+                            } label: {
+                                Label("建立连接", systemImage: "bolt.horizontal.circle")
+                            }
+                            .disabled(model.connectionState == .connecting)
+                            .help("建立 Typeless 管理连接")
+                        }
+
                         Button {
                             Task { await model.refreshOverview() }
                         } label: {
                             Label("刷新", systemImage: "arrow.clockwise")
                         }
-                        .keyboardShortcut("r", modifiers: .command)
                         .disabled(model.isRefreshing)
-                        .help("刷新当前状态")
+                        .help("刷新当前状态（Command-R）")
                     }
                 }
         }
-        .task { await model.refreshOverview() }
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            await refreshWhileActive()
+        }
     }
 
     @ViewBuilder
     private var destinationView: some View {
         switch model.selection {
         case .overview:
-            OverviewPlaceholder(model: model)
+            OverviewView(model: model)
         case .accounts:
             PlaceholderView(title: "账号", message: "管理 Typeless 账号与本地快照。", systemImage: "person.2")
         case .masterDictionary:
@@ -49,46 +62,18 @@ struct RootView: View {
             PlaceholderView(title: "设置", message: "调整启动、窗口和菜单栏行为。", systemImage: "gearshape")
         }
     }
-}
 
-private struct OverviewPlaceholder: View {
-    let model: AppModel
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: connectionSymbol)
-                .font(.system(size: 36))
-                .foregroundStyle(connectionColor)
-                .accessibilityHidden(true)
-            Text("Typeless Toolkit")
-                .font(.title2.weight(.semibold))
-            Text(connectionDescription)
-                .foregroundStyle(.secondary)
-            if let error = model.lastErrorMessage {
-                Text(error)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+    private func refreshWhileActive() async {
+        await model.refreshOverview()
+        let clock = ContinuousClock()
+        while !Task.isCancelled {
+            do {
+                try await clock.sleep(for: .seconds(30))
+            } catch {
+                return
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(32)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var connectionSymbol: String {
-        model.connectionState == .connected ? "checkmark.circle.fill" : "bolt.horizontal.circle"
-    }
-
-    private var connectionColor: Color {
-        model.connectionState == .connected ? .green : .secondary
-    }
-
-    private var connectionDescription: String {
-        switch model.connectionState {
-        case .disconnected: "尚未建立 Typeless 管理连接"
-        case .connecting: "正在建立 Typeless 管理连接…"
-        case .connected: "Typeless 管理连接正常"
-        case .degraded: "连接状态异常，请运行诊断"
+            guard !Task.isCancelled else { return }
+            await model.refreshOverview()
         }
     }
 }
@@ -99,8 +84,7 @@ private struct PlaceholderView: View {
     let systemImage: String
 
     var body: some View {
-        ContentUnavailableView(title, systemImage: systemImage, description: Text(message))
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        EmptyStateView(title: title, message: message, systemImage: systemImage)
     }
 }
 
