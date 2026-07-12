@@ -46,7 +46,7 @@ enum SidecarProcessError: Error, LocalizedError, Sendable {
     }
 }
 
-actor SidecarProcess {
+actor SidecarProcess: RPCTransportProtocol {
     struct Configuration: Sendable {
         let nodeURL: URL
         let mainScriptURL: URL
@@ -102,6 +102,10 @@ actor SidecarProcess {
         if transport == nil { _ = try await start() }
         guard let transport else { throw IPCTransportError.connectionClosed }
         return try await transport.call(method: method, params: params)
+    }
+
+    func close() async {
+        await shutdown()
     }
 
     func shutdown() async {

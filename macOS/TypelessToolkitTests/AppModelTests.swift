@@ -3,6 +3,23 @@ import XCTest
 
 @MainActor
 final class AppModelTests: XCTestCase {
+    func testAppRuntimeRoutesModelCallsThroughLiveTransportAndClosesIt() async {
+        let transport = RuntimeRecordingTransport()
+        let runtime = AppRuntime(
+            preferences: AppPreferences(defaults: isolatedDefaults()),
+            transport: transport
+        )
+
+        await runtime.model.refreshAccounts()
+        await runtime.shutdown()
+
+        let calledMethods = await transport.calledMethods()
+        let wasClosed = await transport.wasClosed()
+        XCTAssertEqual(calledMethods, ["accounts.list"])
+        XCTAssertTrue(wasClosed)
+        XCTAssertNil(runtime.model.lastErrorMessage)
+    }
+
     func testDefaultSelectionIsOverview() {
         let model = AppModel(coreClient: MockCoreClient())
 
@@ -541,4 +558,21 @@ final class AppModelTests: XCTestCase {
         let data = Data(#"{"user_id":"u1","nickname":"测试账号","has_snapshot":true}"#.utf8)
         return try! JSONDecoder().decode(Account.self, from: data)
     }
+}
+
+private actor RuntimeRecordingTransport: RPCTransportProtocol {
+    private var methods: [String] = []
+    private var closed = false
+
+    func call(method: String, params: JSONValue) async throws -> JSONValue {
+        methods.append(method)
+        return .object(["accounts": .array([])])
+    }
+
+    func close() async {
+        closed = true
+    }
+
+    func calledMethods() -> [String] { methods }
+    func wasClosed() -> Bool { closed }
 }
