@@ -45,6 +45,35 @@ test('capture handle hides token and is consumed by save', async () => {
   }), error => error.code === 'CAPTURE_EXPIRED');
 });
 
+test('snapshots.switch requires a matching one-time confirmation', async () => {
+  const calls = [];
+  const service = createApplicationService({ core: {
+    readAccounts: () => [{ user_id: 'u1', nickname: 'N', token: 'secret' }],
+    hasSnapshot: () => true,
+    killTypeless: async () => calls.push('kill'),
+    sleep: async () => {},
+    restoreSnapshot: userId => calls.push(`restore:${userId}`),
+    launchTypeless: () => calls.push('launch'),
+  }});
+
+  await assert.rejects(() => service.execute('snapshots.switch', { user_id: 'u1' }),
+    error => error.code === 'CONFIRMATION_REQUIRED');
+  const prepared = await service.execute('operations.prepare', {
+    method: 'snapshots.switch',
+    params: { user_id: 'u1' },
+    summary: { title: '切换账号' },
+  });
+  const result = await service.execute('snapshots.switch', {
+    user_id: 'u1', confirmation_token: prepared.confirmation_token,
+  });
+
+  assert.deepEqual(result, { switched: true, user_id: 'u1' });
+  assert.deepEqual(calls, ['kill', 'restore:u1', 'launch']);
+  await assert.rejects(() => service.execute('snapshots.switch', {
+    user_id: 'u1', confirmation_token: prepared.confirmation_token,
+  }), error => error.code === 'CONFIRMATION_REQUIRED');
+});
+
 test('dictionaries.addWords trims and removes empty terms', async () => {
   const calls = [];
   const service = createApplicationService({ core: {

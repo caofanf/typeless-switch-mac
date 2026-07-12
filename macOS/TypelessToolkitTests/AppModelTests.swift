@@ -77,6 +77,94 @@ final class AppModelTests: XCTestCase {
         XCTAssertNotNil(model.lastErrorMessage)
     }
 
+    func testAddAccountWorkflowMovesThroughExpectedPhasesAndKeepsCaptureSanitized() async throws {
+        let client = MockCoreClient()
+        client.connection = .init(state: .connected, port: 9222, cdpReachable: true)
+        client.capture = AccountCapture(
+            captureID: "capture-1",
+            userID: "u2",
+            nickname: "新账号",
+            email: "new@example.com",
+            role: "pro",
+            capturedAt: nil
+        )
+        client.savedAccount = makeAccount(id: "u2", nickname: "新账号")
+        let model = AppModel(coreClient: client)
+        var phases: [AddAccountPhase] = []
+        client.onEstablishConnection = { phases.append(model.addAccountPhase) }
+        client.onCaptureCurrentAccount = { phases.append(model.addAccountPhase) }
+        client.onSaveCapture = { phases.append(model.addAccountPhase) }
+
+        await model.beginAddAccount()
+        phases.append(model.addAccountPhase)
+        XCTAssertEqual(model.pendingAccountCapture?.userID, "u2")
+
+        let encodedCapture = try JSONEncoder().encode(model.pendingAccountCapture)
+        let encodedText = String(decoding: encodedCapture, as: UTF8.self)
+        XCTAssertFalse(encodedText.localizedCaseInsensitiveContains("token"))
+
+        await model.savePendingAccount(nickname: "新账号", email: "new@example.com")
+        phases.append(model.addAccountPhase)
+
+        XCTAssertEqual(phases, [.establishingConnection, .capturing, .reviewing, .saving, .completed])
+        XCTAssertEqual(client.savedCaptureID, "capture-1")
+        XCTAssertEqual(model.accounts.map(\.id), ["u2"])
+    }
+
+    func testDeleteAccountIsPreparedBeforeExecution() async {
+        let client = MockCoreClient()
+        client.confirmation = makeConfirmation(summary: .object([
+            "title": .string("删除账号"),
+            "message": .string("同时删除本地快照")
+        ]))
+        client.accounts = [makeAccount(id: "u1", nickname: "待删除")]
+        let model = AppModel(coreClient: client)
+
+        await model.prepareDeleteAccount(accountID: "u1", deleteSnapshot: true)
+
+        XCTAssertEqual(client.preparedMethods, ["accounts.delete"])
+        XCTAssertEqual(client.deleteAccountCallCount, 0)
+        XCTAssertEqual(model.pendingAccountOperation?.kind, .delete)
+
+        await model.confirmPendingAccountOperation()
+
+        XCTAssertEqual(client.deleteAccountCallCount, 1)
+        XCTAssertEqual(client.deletedAccountID, "u1")
+        XCTAssertEqual(client.usedConfirmationToken, "confirm-1")
+        XCTAssertTrue(model.accounts.isEmpty)
+    }
+
+    func testSwitchAccountIsPreparedBeforeExecution() async {
+        let client = MockCoreClient()
+        client.confirmation = makeConfirmation(summary: .object([
+            "title": .string("切换账号"),
+            "message": .string("Typeless 将重新启动")
+        ]))
+        client.accounts = [makeAccount(id: "u1", nickname: "目标账号")]
+        let model = AppModel(coreClient: client)
+
+        await model.prepareSwitchAccount(accountID: "u1")
+
+        XCTAssertEqual(client.preparedMethods, ["snapshots.switch"])
+        XCTAssertEqual(client.switchSnapshotCallCount, 0)
+        XCTAssertEqual(model.pendingAccountOperation?.kind, .switchSnapshot)
+
+        await model.confirmPendingAccountOperation()
+
+        XCTAssertEqual(client.switchSnapshotCallCount, 1)
+        XCTAssertEqual(client.switchedAccountID, "u1")
+        XCTAssertEqual(client.usedConfirmationToken, "confirm-1")
+    }
+
+    private func makeConfirmation(summary: JSONValue) -> Confirmation {
+        Confirmation(token: "confirm-1", expiresAt: Date(timeIntervalSince1970: 4_000_000_000), summary: summary)
+    }
+
+    private func makeAccount(id: String, nickname: String) -> Account {
+        let data = Data(#"{"user_id":"\#(id)","nickname":"\#(nickname)","has_snapshot":true}"#.utf8)
+        return try! JSONDecoder().decode(Account.self, from: data)
+    }
+
     private func makeOverview() -> SystemOverview {
         SystemOverview(
             connection: .init(state: .connected, port: 9222, cdpReachable: true),

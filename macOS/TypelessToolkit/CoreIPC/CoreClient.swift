@@ -17,7 +17,7 @@ protocol CoreClientProtocol: Sendable {
     func saveCapture(id: String, nickname: String, email: String) async throws -> Account
     func deleteAccount(id: String, deleteSnapshot: Bool, confirmationToken: String) async throws -> AccountDeletionResult
     func saveSnapshot(accountID: String) async throws -> SnapshotResult
-    func switchSnapshot(accountID: String) async throws -> SnapshotResult
+    func switchSnapshot(accountID: String, confirmationToken: String) async throws -> SnapshotResult
     func accountDictionary(accountID: String) async throws -> AccountDictionary
     func masterDictionary() async throws -> MasterDictionary
     func addWord(_ term: String, accountID: String) async throws -> AddedWordResult
@@ -56,7 +56,7 @@ extension CoreClientProtocol {
     func saveCapture(id: String, nickname: String, email: String) async throws -> Account { try unavailable() }
     func deleteAccount(id: String, deleteSnapshot: Bool, confirmationToken: String) async throws -> AccountDeletionResult { try unavailable() }
     func saveSnapshot(accountID: String) async throws -> SnapshotResult { try unavailable() }
-    func switchSnapshot(accountID: String) async throws -> SnapshotResult { try unavailable() }
+    func switchSnapshot(accountID: String, confirmationToken: String) async throws -> SnapshotResult { try unavailable() }
     func accountDictionary(accountID: String) async throws -> AccountDictionary { try unavailable() }
     func masterDictionary() async throws -> MasterDictionary { try unavailable() }
     func addWord(_ term: String, accountID: String) async throws -> AddedWordResult { try unavailable() }
@@ -115,8 +115,10 @@ struct LiveCoreClient: CoreClientProtocol, Sendable {
         try await call("snapshots.save", params: object("user_id", accountID))
     }
 
-    func switchSnapshot(accountID: String) async throws -> SnapshotResult {
-        try await call("snapshots.switch", params: object("user_id", accountID))
+    func switchSnapshot(accountID: String, confirmationToken: String) async throws -> SnapshotResult {
+        try await call("snapshots.switch", params: .object([
+            "user_id": .string(accountID), "confirmation_token": .string(confirmationToken)
+        ]))
     }
 
     func accountDictionary(accountID: String) async throws -> AccountDictionary {

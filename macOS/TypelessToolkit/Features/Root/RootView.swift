@@ -49,7 +49,7 @@ struct RootView: View {
         case .overview:
             OverviewView(model: model)
         case .accounts:
-            PlaceholderView(title: "账号", message: "管理 Typeless 账号与本地快照。", systemImage: "person.2")
+            AccountsView(model: model)
         case .masterDictionary:
             PlaceholderView(title: "主词库", message: "维护并同步跨账号使用的主词库。", systemImage: "text.book.closed")
         case .backupRestore:

@@ -197,7 +197,9 @@ async function routeRequest(req, res) {
       return send(res, 200, { status: 'OK', msg: '快照已保存', has_snapshot: data.has_snapshot });
     }
     if (method === 'POST' && action === 'switch') {
-      await service.execute('snapshots.switch', { user_id: userId });
+      await executeConfirmed('snapshots.switch', { user_id: userId }, {
+        title: '切换账号', message: '将恢复本地登录快照并重新启动 Typeless',
+      });
       return send(res, 200, { status: 'OK', msg: '已切换并重启 Typeless' });
     }
     if (method === 'GET' && action === 'dictionary') {

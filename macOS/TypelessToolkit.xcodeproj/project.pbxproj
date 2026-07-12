@@ -29,6 +29,10 @@
 		A10000000000000000000084 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000092 /* OverviewView.swift */; };
 		A10000000000000000000085 /* MenuBarContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000093 /* MenuBarContent.swift */; };
 		A10000000000000000000086 /* AppCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000094 /* AppCommands.swift */; };
+		A10000000000000000000087 /* ConfirmationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000095 /* ConfirmationSheet.swift */; };
+		A10000000000000000000088 /* AccountsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000096 /* AccountsView.swift */; };
+		A10000000000000000000089 /* AccountDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000097 /* AccountDetailView.swift */; };
+		A1000000000000000000008A /* AddAccountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000098 /* AddAccountSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -69,6 +73,10 @@
 		A10000000000000000000092 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
 		A10000000000000000000093 /* MenuBarContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContent.swift; sourceTree = "<group>"; };
 		A10000000000000000000094 /* AppCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCommands.swift; sourceTree = "<group>"; };
+		A10000000000000000000095 /* ConfirmationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationSheet.swift; sourceTree = "<group>"; };
+		A10000000000000000000096 /* AccountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountsView.swift; sourceTree = "<group>"; };
+		A10000000000000000000097 /* AccountDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountDetailView.swift; sourceTree = "<group>"; };
+		A10000000000000000000098 /* AddAccountSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddAccountSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,7 +116,7 @@
 		};
 		A10000000000000000000009 /* Features */ = {
 			isa = PBXGroup;
-			children = (A1000000000000000000000A /* Root */, A1000000000000000000000E /* Overview */);
+			children = (A1000000000000000000000A /* Root */, A1000000000000000000000E /* Overview */, A1000000000000000000000F /* Accounts */);
 			path = Features;
 			sourceTree = "<group>";
 		};
@@ -126,7 +134,7 @@
 		};
 		A1000000000000000000000D /* DesignSystem */ = {
 			isa = PBXGroup;
-			children = (A10000000000000000000090 /* StatusView.swift */, A10000000000000000000091 /* EmptyStateView.swift */);
+			children = (A10000000000000000000090 /* StatusView.swift */, A10000000000000000000091 /* EmptyStateView.swift */, A10000000000000000000095 /* ConfirmationSheet.swift */);
 			path = DesignSystem;
 			sourceTree = "<group>";
 		};
@@ -134,6 +142,12 @@
 			isa = PBXGroup;
 			children = (A10000000000000000000092 /* OverviewView.swift */);
 			path = Overview;
+			sourceTree = "<group>";
+		};
+		A1000000000000000000000F /* Accounts */ = {
+			isa = PBXGroup;
+			children = (A10000000000000000000096 /* AccountsView.swift */, A10000000000000000000097 /* AccountDetailView.swift */, A10000000000000000000098 /* AddAccountSheet.swift */);
+			path = Accounts;
 			sourceTree = "<group>";
 		};
 		A1000000000000000000000A /* Root */ = {
@@ -192,7 +206,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A10000000000000000000052 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000020, A10000000000000000000021, A10000000000000000000022, A10000000000000000000023, A10000000000000000000026, A10000000000000000000027, A10000000000000000000028, A10000000000000000000029, A1000000000000000000002C, A1000000000000000000002D, A1000000000000000000002E, A1000000000000000000002F, A10000000000000000000080, A10000000000000000000081, A10000000000000000000082, A10000000000000000000083, A10000000000000000000084, A10000000000000000000085, A10000000000000000000086); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000052 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000020, A10000000000000000000021, A10000000000000000000022, A10000000000000000000023, A10000000000000000000026, A10000000000000000000027, A10000000000000000000028, A10000000000000000000029, A1000000000000000000002C, A1000000000000000000002D, A1000000000000000000002E, A1000000000000000000002F, A10000000000000000000080, A10000000000000000000081, A10000000000000000000082, A10000000000000000000083, A10000000000000000000084, A10000000000000000000085, A10000000000000000000086, A10000000000000000000087, A10000000000000000000088, A10000000000000000000089, A1000000000000000000008A); runOnlyForDeploymentPostprocessing = 0; };
 		A10000000000000000000053 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000024, A10000000000000000000025, A1000000000000000000002A, A1000000000000000000002B); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
