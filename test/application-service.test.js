@@ -24,3 +24,20 @@ test('connection status is exposed without HTTP concepts', async () => {
   }});
   assert.deepEqual(await service.execute('connection.status', {}), { cdp_reachable: false });
 });
+
+test('capture handle hides token and is consumed by save', async () => {
+  const saved = [];
+  const service = createApplicationService({ core: {
+    captureTokenCDP: async () => ({ user_id: 'u1', token: 'secret', nickname: 'N' }),
+    readAccounts: () => [],
+    writeAccounts: accounts => saved.push(accounts),
+    saveSnapshot: () => {},
+  }, now: () => 1000 });
+  const capture = await service.execute('accounts.captureCurrent', {});
+  assert.equal(JSON.stringify(capture).includes('secret'), false);
+  await service.execute('accounts.saveCapture', { capture_id: capture.capture_id, nickname: 'N' });
+  assert.equal(saved[0][0].token, 'secret');
+  await assert.rejects(() => service.execute('accounts.saveCapture', {
+    capture_id: capture.capture_id,
+  }), error => error.code === 'CAPTURE_EXPIRED');
+});
