@@ -1,5 +1,13 @@
 import SwiftUI
 
+enum AppLayout {
+    static let mainMinimumWidth: CGFloat = 960
+    static let primarySidebarMinimumWidth: CGFloat = 210
+    static let accountListMinimumWidth: CGFloat = 240
+    static let accountDetailMinimumWidth: CGFloat = 400
+    static let splitViewSafetyMargin: CGFloat = 80
+}
+
 struct RootView: View {
     @Bindable var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
@@ -11,7 +19,7 @@ struct RootView: View {
                     .tag(destination)
             }
             .navigationTitle("Typeless Toolkit")
-            .navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 280)
+            .navigationSplitViewColumnWidth(min: AppLayout.primarySidebarMinimumWidth, ideal: 230, max: 280)
         } detail: {
             destinationView
                 .navigationTitle(model.selection.title)

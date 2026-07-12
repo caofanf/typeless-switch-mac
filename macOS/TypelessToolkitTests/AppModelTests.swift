@@ -3,6 +3,19 @@ import XCTest
 
 @MainActor
 final class AppModelTests: XCTestCase {
+    func testAccountLayoutLeavesRoomForPrimarySidebarAtMinimumWindowWidth() {
+        let remainingWidth = AppLayout.mainMinimumWidth
+            - AppLayout.primarySidebarMinimumWidth
+            - AppLayout.accountListMinimumWidth
+            - AppLayout.accountDetailMinimumWidth
+
+        XCTAssertGreaterThanOrEqual(
+            remainingWidth,
+            AppLayout.splitViewSafetyMargin,
+            "账号页不应通过内部最小宽度挤压主导航侧栏"
+        )
+    }
+
     func testAppRuntimeRoutesModelCallsThroughLiveTransportAndClosesIt() async {
         let transport = RuntimeRecordingTransport()
         let runtime = AppRuntime(

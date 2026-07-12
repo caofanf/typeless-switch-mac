@@ -52,7 +52,7 @@ struct TypelessToolkitApp: App {
     var body: some Scene {
         WindowGroup("Typeless Toolkit", id: "main") {
             RootView(model: model)
-                .frame(minWidth: 960, minHeight: 640)
+                .frame(minWidth: AppLayout.mainMinimumWidth, minHeight: 640)
                 .onAppear {
                     appDelegate.configureShutdown {
                         await runtime.shutdown()

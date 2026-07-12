@@ -7,10 +7,10 @@ struct AccountsView: View {
     var body: some View {
         HSplitView {
             accountList
-                .frame(minWidth: 260, idealWidth: 300, maxWidth: 360)
+                .frame(minWidth: AppLayout.accountListMinimumWidth, idealWidth: 280, maxWidth: 340)
 
             detail
-                .frame(minWidth: 480, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minWidth: AppLayout.accountDetailMinimumWidth, maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .toolbar {
