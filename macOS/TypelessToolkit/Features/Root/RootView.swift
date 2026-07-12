@@ -51,7 +51,7 @@ struct RootView: View {
         case .accounts:
             AccountsView(model: model)
         case .masterDictionary:
-            PlaceholderView(title: "主词库", message: "维护并同步跨账号使用的主词库。", systemImage: "text.book.closed")
+            MasterDictionaryView(model: model)
         case .backupRestore:
             PlaceholderView(title: "备份与恢复", message: "创建、导出、检查和恢复工具包数据。", systemImage: "externaldrive.badge.timemachine")
         case .diagnostics:

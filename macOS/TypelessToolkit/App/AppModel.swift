@@ -62,6 +62,20 @@ struct PendingAccountOperation: Identifiable, Equatable, Sendable {
     var id: String { confirmation.token }
 }
 
+struct MasterDictionaryDiff: Equatable, Sendable {
+    let added: [String]
+    let removed: [String]
+    let unchanged: [String]
+}
+
+struct PendingMasterReplacement: Identifiable, Equatable, Sendable {
+    let terms: [String]
+    let diff: MasterDictionaryDiff
+    let confirmation: Confirmation
+
+    var id: String { confirmation.token }
+}
+
 @Observable
 @MainActor
 final class AppModel {
@@ -79,6 +93,18 @@ final class AppModel {
     private(set) var pendingAccountCapture: AccountCapture?
     private(set) var pendingAccountOperation: PendingAccountOperation?
     private(set) var isPerformingAccountOperation = false
+    private(set) var accountDictionary: AccountDictionary?
+    private(set) var accountDictionaryAccountID: String?
+    var dictionarySearchText = ""
+    private(set) var isRefreshingDictionary = false
+    private(set) var isWritingDictionary = false
+    private(set) var masterDictionary = MasterDictionary(words: [])
+    var masterDictionarySearchText = ""
+    private(set) var isRefreshingMasterDictionary = false
+    private(set) var pendingMasterReplacement: PendingMasterReplacement?
+    private(set) var isReplacingMasterDictionary = false
+    private(set) var taskCancellationNotice: String?
+    private var dictionaryTaskIDsByAccount: [String: String] = [:]
 
     private let coreClient: any CoreClientProtocol
 
@@ -103,13 +129,35 @@ final class AppModel {
     func syncAllDictionaries() async {
         do {
             let task = try await coreClient.syncAllDictionaries()
-            if !activeTasks.contains(where: { $0.id == task.id }) {
-                activeTasks.append(task)
-            }
+            upsertTask(task)
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = "无法开始同步。请稍后重试。"
         }
+    }
+
+    var filteredAccountDictionaryWords: [DictionaryWord] {
+        let words = accountDictionary?.words ?? []
+        let query = dictionarySearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return words }
+        return words.filter { $0.term.localizedCaseInsensitiveContains(query) }
+    }
+
+    var filteredMasterDictionaryWords: [String] {
+        let query = masterDictionarySearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return masterDictionary.words }
+        return masterDictionary.words.filter { $0.localizedCaseInsensitiveContains(query) }
+    }
+
+    func normalizedDictionaryTerms(from input: String) -> [String] {
+        var seen = Set<String>()
+        return input
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { term in
+                guard !term.isEmpty else { return false }
+                return seen.insert(term.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)).inserted
+            }
     }
 
     var filteredAccounts: [Account] {
@@ -272,6 +320,148 @@ final class AppModel {
             accounts[index] = account
         } else {
             accounts.append(account)
+        }
+    }
+
+    func refreshAccountDictionary(accountID: String) async {
+        guard !isRefreshingDictionary else { return }
+        isRefreshingDictionary = true
+        defer { isRefreshingDictionary = false }
+        do {
+            accountDictionary = try await coreClient.accountDictionary(accountID: accountID)
+            accountDictionaryAccountID = accountID
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法读取个人词库。请检查账号连接后重试。"
+        }
+    }
+
+    func addDictionaryTerms(_ input: String, accountID: String) async {
+        let terms = normalizedDictionaryTerms(from: input)
+        guard !terms.isEmpty, !isWritingDictionary else { return }
+        isWritingDictionary = true
+        defer { isWritingDictionary = false }
+        do {
+            if terms.count == 1 {
+                _ = try await coreClient.addWord(terms[0], accountID: accountID)
+            } else {
+                let outcome = try await coreClient.addWords(terms, accountID: accountID)
+                if case let .task(task) = outcome { upsertTask(task) }
+            }
+            accountDictionary = try await coreClient.accountDictionary(accountID: accountID)
+            accountDictionaryAccountID = accountID
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法添加词条。远端词库未更新，请重试。"
+        }
+    }
+
+    func deleteDictionaryWord(_ term: String, accountID: String) async {
+        guard !isWritingDictionary else { return }
+        isWritingDictionary = true
+        defer { isWritingDictionary = false }
+        do {
+            _ = try await coreClient.deleteWord(term, accountID: accountID)
+            accountDictionary = try await coreClient.accountDictionary(accountID: accountID)
+            accountDictionaryAccountID = accountID
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法删除词条。远端词库未更新，请重试。"
+        }
+    }
+
+    func syncAccountDictionary(accountID: String) async {
+        do {
+            let task = try await coreClient.syncAccountDictionary(accountID: accountID)
+            dictionaryTaskIDsByAccount[accountID] = task.id
+            upsertTask(task)
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法开始同步该账号的词库。"
+        }
+    }
+
+    func dictionaryTask(for accountID: String) -> CoreTask? {
+        guard let taskID = dictionaryTaskIDsByAccount[accountID] else { return nil }
+        return activeTasks.first { $0.id == taskID }
+    }
+
+    func refreshMasterDictionary() async {
+        guard !isRefreshingMasterDictionary else { return }
+        isRefreshingMasterDictionary = true
+        defer { isRefreshingMasterDictionary = false }
+        do {
+            masterDictionary = try await coreClient.masterDictionary()
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法读取主词库。请稍后重试。"
+        }
+    }
+
+    func prepareMasterReplacement(from input: String) async {
+        let terms = normalizedDictionaryTerms(from: input)
+        let existingKeys = Set(masterDictionary.words.map(dictionaryTermKey))
+        let proposedKeys = Set(terms.map(dictionaryTermKey))
+        let added = terms.filter { !existingKeys.contains(dictionaryTermKey($0)) }
+        let removed = masterDictionary.words.filter { !proposedKeys.contains(dictionaryTermKey($0)) }
+        let unchanged = terms.filter { existingKeys.contains(dictionaryTermKey($0)) }
+        let diff = MasterDictionaryDiff(added: added, removed: removed, unchanged: unchanged)
+        let params: JSONValue = .object(["terms": .array(terms.map(JSONValue.string))])
+        let summary: JSONValue = .object([
+            "title": .string("替换主词库"),
+            "message": .string("新增 \(added.count) 条，移除 \(removed.count) 条，保留 \(unchanged.count) 条。"),
+            "destructive": .bool(!removed.isEmpty),
+        ])
+        do {
+            let confirmation = try await coreClient.prepareOperation(method: "master.replace", params: params, summary: summary)
+            pendingMasterReplacement = .init(terms: terms, diff: diff, confirmation: confirmation)
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法准备主词库替换。请稍后重试。"
+        }
+    }
+
+    func confirmMasterReplacement() async {
+        guard let pendingMasterReplacement, !isReplacingMasterDictionary else { return }
+        isReplacingMasterDictionary = true
+        defer { isReplacingMasterDictionary = false }
+        do {
+            masterDictionary = try await coreClient.replaceMasterDictionary(
+                pendingMasterReplacement.terms,
+                confirmationToken: pendingMasterReplacement.confirmation.token
+            )
+            self.pendingMasterReplacement = nil
+            lastErrorMessage = nil
+        } catch {
+            self.pendingMasterReplacement = nil
+            lastErrorMessage = "主词库替换未完成。确认可能已过期，请重试。"
+        }
+    }
+
+    func cancelMasterReplacement() {
+        pendingMasterReplacement = nil
+    }
+
+    func cancelTask(id: String) async {
+        do {
+            let result = try await coreClient.cancelTask(id: id)
+            if result.cancelled { taskCancellationNotice = "将在当前账号同步结束后取消" }
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法取消任务。任务可能已经结束。"
+        }
+    }
+
+    private func dictionaryTermKey(_ term: String) -> String {
+        term.trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+    }
+
+    private func upsertTask(_ task: CoreTask) {
+        if let index = activeTasks.firstIndex(where: { $0.id == task.id }) {
+            activeTasks[index] = task
+        } else {
+            activeTasks.append(task)
         }
     }
 

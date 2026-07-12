@@ -3,6 +3,10 @@ import SwiftUI
 struct AccountDetailView: View {
     let account: Account
     @Bindable var model: AppModel
+    @State private var newDictionaryTerm = ""
+    @State private var bulkDictionaryInput = ""
+    @State private var isPresentingBulkImport = false
+    @State private var wordPendingDeletion: String?
 
     var body: some View {
         ScrollView {
@@ -17,6 +21,24 @@ struct AccountDetailView: View {
             .frame(maxWidth: 820, alignment: .leading)
         }
         .background(Color(nsColor: .controlBackgroundColor))
+        .task(id: account.id) { await model.refreshAccountDictionary(accountID: account.id) }
+        .sheet(isPresented: $isPresentingBulkImport) { bulkImportSheet }
+        .confirmationDialog(
+            "删除词条？",
+            isPresented: Binding(
+                get: { wordPendingDeletion != nil },
+                set: { if !$0 { wordPendingDeletion = nil } }
+            )
+        ) {
+            Button("删除", role: .destructive) {
+                guard let term = wordPendingDeletion else { return }
+                wordPendingDeletion = nil
+                Task { await model.deleteDictionaryWord(term, accountID: account.id) }
+            }
+            Button("取消", role: .cancel) { wordPendingDeletion = nil }
+        } message: {
+            Text("删除请求确认成功后，列表会从远端重新读取。")
+        }
     }
 
     private var header: some View {
@@ -121,19 +143,103 @@ struct AccountDetailView: View {
 
     private var dictionarySection: some View {
         GroupBox("个人词库") {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("词条数量")
-                        .fontWeight(.medium)
-                    Text("当前账号共有 \(account.live?.dictionaryCount ?? 0) 个词条")
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    TextField("添加一个词条", text: $newDictionaryTerm)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { addSingleDictionaryTerm() }
+                    Button("添加") { addSingleDictionaryTerm() }
+                        .disabled(newDictionaryTerm.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isWritingDictionary)
+                    Button("批量添加…") { isPresentingBulkImport = true }
+                    Button { Task { await model.syncAccountDictionary(accountID: account.id) } } label: {
+                        Label("同步", systemImage: "arrow.triangle.2.circlepath")
+                    }
                 }
-                Spacer()
-                Label("选择账号后在此管理", systemImage: "text.book.closed")
-                    .foregroundStyle(.secondary)
+
+                if let task = model.dictionaryTask(for: account.id) {
+                    HStack(spacing: 10) {
+                        if let fraction = task.progress?.fractionCompleted {
+                            ProgressView(value: fraction).frame(width: 150)
+                        } else {
+                            ProgressView().controlSize(.small)
+                        }
+                        Text(task.progress?.message ?? "正在同步个人词库")
+                            .font(.callout).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("取消") { Task { await model.cancelTask(id: task.id) } }
+                            .disabled(!task.cancellable)
+                    }
+                }
+
+                TextField("搜索词条", text: $model.dictionarySearchText)
+                    .textFieldStyle(.roundedBorder)
+
+                if model.isRefreshingDictionary && model.accountDictionary == nil {
+                    ProgressView("正在读取个人词库…")
+                        .frame(maxWidth: .infinity, minHeight: 150)
+                } else if model.filteredAccountDictionaryWords.isEmpty {
+                    ContentUnavailableView(
+                        model.dictionarySearchText.isEmpty ? "个人词库为空" : "没有匹配的词条",
+                        systemImage: "text.book.closed",
+                        description: Text(model.dictionarySearchText.isEmpty ? "添加单个词条或批量粘贴。" : "尝试更换搜索关键词。")
+                    )
+                    .frame(minHeight: 150)
+                } else {
+                    List(model.filteredAccountDictionaryWords) { word in
+                        HStack {
+                            Text(word.term).textSelection(.enabled)
+                            Spacer()
+                            if word.auto {
+                                Text("自动").font(.caption).foregroundStyle(.secondary)
+                            }
+                            Button(role: .destructive) { wordPendingDeletion = word.term } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("删除“\(word.term)”")
+                        }
+                    }
+                    .frame(minHeight: 190, maxHeight: 280)
+                }
             }
             .padding(.vertical, 6)
         }
+    }
+
+    private var bulkImportSheet: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("批量添加词条").font(.title2.weight(.semibold))
+            Text("每行一个词条。空行和重复项会自动移除。超过 100 条时会转为后台任务。")
+                .foregroundStyle(.secondary)
+            TextEditor(text: $bulkDictionaryInput)
+                .font(.body.monospaced())
+                .frame(width: 500, height: 280)
+                .overlay { RoundedRectangle(cornerRadius: 6).stroke(.separator) }
+                .accessibilityLabel("批量词条，每行一个")
+            HStack {
+                Text("整理后 \(model.normalizedDictionaryTerms(from: bulkDictionaryInput).count) 条")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("取消") { isPresentingBulkImport = false }.keyboardShortcut(.cancelAction)
+                Button("添加") {
+                    let input = bulkDictionaryInput
+                    isPresentingBulkImport = false
+                    bulkDictionaryInput = ""
+                    Task { await model.addDictionaryTerms(input, accountID: account.id) }
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(model.normalizedDictionaryTerms(from: bulkDictionaryInput).isEmpty)
+            }
+        }
+        .padding(24)
+    }
+
+    private func addSingleDictionaryTerm() {
+        let input = newDictionaryTerm
+        guard !model.normalizedDictionaryTerms(from: input).isEmpty else { return }
+        newDictionaryTerm = ""
+        Task { await model.addDictionaryTerms(input, accountID: account.id) }
     }
 
     private var tokenTitle: String {

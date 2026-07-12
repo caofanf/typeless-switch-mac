@@ -14,6 +14,10 @@ final class MockCoreClient: CoreClientProtocol {
     var savedAccount: Account?
     var accounts: [Account] = []
     var confirmation = Confirmation(token: "confirm", expiresAt: .distantFuture, summary: .object([:]))
+    var accountDictionaryValue = AccountDictionary(words: [])
+    var masterDictionaryValue = MasterDictionary(words: [])
+    var accountSyncTask = CoreTask(id: "sync-account", type: "sync-account", state: .queued, cancellable: true, progress: nil, result: nil, error: nil)
+    var onDeleteWord: (() -> Void)?
     var onEstablishConnection: (() -> Void)?
     var onCaptureCurrentAccount: (() -> Void)?
     var onSaveCapture: (() -> Void)?
@@ -26,6 +30,12 @@ final class MockCoreClient: CoreClientProtocol {
     private(set) var deletedAccountID: String?
     private(set) var switchedAccountID: String?
     private(set) var usedConfirmationToken: String?
+    private(set) var accountDictionaryCallCount = 0
+    private(set) var deletedDictionaryTerms: [String] = []
+    private(set) var syncedAccountIDs: [String] = []
+    private(set) var replaceMasterCallCount = 0
+    private(set) var replacedMasterTerms: [String] = []
+    private(set) var cancelledTaskIDs: [String] = []
 
     func getOverview() async throws -> SystemOverview {
         if let overviewError { throw overviewError }
@@ -71,6 +81,36 @@ final class MockCoreClient: CoreClientProtocol {
         switchedAccountID = accountID
         usedConfirmationToken = confirmationToken
         return .init(userID: accountID, hasSnapshot: nil, switched: true)
+    }
+
+    func accountDictionary(accountID: String) async throws -> AccountDictionary {
+        accountDictionaryCallCount += 1
+        return accountDictionaryValue
+    }
+
+    func masterDictionary() async throws -> MasterDictionary { masterDictionaryValue }
+
+    func deleteWord(_ term: String, accountID: String) async throws -> DeletedWordResult {
+        deletedDictionaryTerms.append(term)
+        onDeleteWord?()
+        return .init(term: term, deleted: true)
+    }
+
+    func syncAccountDictionary(accountID: String) async throws -> CoreTask {
+        syncedAccountIDs.append(accountID)
+        return accountSyncTask
+    }
+
+    func replaceMasterDictionary(_ terms: [String], confirmationToken: String) async throws -> MasterDictionary {
+        replaceMasterCallCount += 1
+        replacedMasterTerms = terms
+        usedConfirmationToken = confirmationToken
+        return masterDictionaryValue
+    }
+
+    func cancelTask(id: String) async throws -> TaskCancellationResult {
+        cancelledTaskIDs.append(id)
+        return .init(cancelled: true)
     }
 
     func syncAllDictionaries() async throws -> CoreTask {
