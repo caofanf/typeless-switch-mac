@@ -1,5 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { createApplicationService } = require('../lib/application-service');
 
 test('accounts.list returns sanitized live account state', async () => {
@@ -53,4 +56,31 @@ test('dictionaries.addWords trims and removes empty terms', async () => {
   });
   assert.equal(result.requested, 2);
   assert.equal(calls[0][3].content, 'alpha\nbeta');
+});
+
+
+test('backup.restore rejects a file changed after inspection', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tt-inspection-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const source = path.join(dir, 'backup.json');
+  fs.writeFileSync(source, JSON.stringify({
+    type: 'typeless-toolkit-macos-runtime-backup', version: 1, files: [],
+  }));
+  const service = createApplicationService({ core: {
+    restoreRuntimeBackupBundle: () => { throw new Error('must not restore changed input'); },
+  }, now: () => 1000 });
+  const inspection = await service.execute('backup.inspect', { path: source });
+  fs.appendFileSync(source, ' ');
+  await assert.rejects(() => service.execute('backup.restore', {
+    inspection_id: inspection.inspection_id,
+    confirmation_token: 'unused',
+  }), error => error.code === 'BACKUP_CHANGED');
+});
+
+test('device reset and patch require server-side confirmation', async () => {
+  const service = createApplicationService({ core: {} });
+  await assert.rejects(() => service.execute('device.reset', {}),
+    error => error.code === 'CONFIRMATION_REQUIRED');
+  await assert.rejects(() => service.execute('patch.apply', {}),
+    error => error.code === 'CONFIRMATION_REQUIRED');
 });
