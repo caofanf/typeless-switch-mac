@@ -84,3 +84,28 @@ test('device reset and patch require server-side confirmation', async () => {
   await assert.rejects(() => service.execute('patch.apply', {}),
     error => error.code === 'CONFIRMATION_REQUIRED');
 });
+
+test('diagnostics.run owns the detailed manager diagnostics orchestration', async () => {
+  const service = createApplicationService({ core: {
+    ROOT: '/data', CODE_DIR: '/code', MAC_APP_PATH: '/Typeless.app', TYPELESS_BIN: '/Typeless',
+    ASAR_PATH: '/app.asar', MAC_INFO_PLIST: '/Info.plist', USERDATA_DIR: '/user-data',
+    ACCOUNTS_FILE: '/data/accounts.json', PROFILES_DIR: '/data/profiles',
+    RUNTIME_BACKUPS_DIR: '/data/runtime-backups', RUNTIME_DATA: { migration: { status: 'none' } },
+    typelessConnectionStatus: async () => ({ port: 9222, cdp_reachable: false, state: 'disconnected' }),
+    readAccounts: () => [],
+    runtimeDataStatus: () => ({ status: 'no_data' }),
+    versionDriftStatus: () => ({ drifted: false }),
+    paywallStatus: () => ({ exists: false }),
+    pathExists: target => target === '/Typeless.app',
+    pathWritable: target => target === '/data',
+  }});
+
+  const result = await service.execute('diagnostics.run', {});
+
+  assert.equal(result.typeless.app_path, '/Typeless.app');
+  assert.equal(result.typeless.app_found, true);
+  assert.equal(result.cdp.reachable, false);
+  assert.equal(result.data.dir, '/data');
+  assert.equal(result.data.writable, true);
+  assert.equal(result.data.accounts_count, 0);
+});
