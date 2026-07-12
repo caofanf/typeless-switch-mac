@@ -38,49 +38,12 @@ enum SidebarDestination: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-enum ConnectionState: String, Codable, Sendable {
-    case disconnected
-    case connecting
-    case connected
-    case degraded
-}
-
-struct SystemOverview: Equatable, Sendable {
-    var connectionState: ConnectionState
-    var accountCount: Int
-    var activeTaskCount: Int
-
-    static let empty = SystemOverview(
-        connectionState: .disconnected,
-        accountCount: 0,
-        activeTaskCount: 0
-    )
-}
-
-struct ActiveTask: Identifiable, Equatable, Sendable {
-    let id: String
-    var title: String
-    var progress: Double?
-}
-
-@MainActor
-protocol CoreClientProtocol: AnyObject {
-    func getOverview() async throws -> SystemOverview
-}
-
-@MainActor
-final class UnavailableCoreClient: CoreClientProtocol {
-    func getOverview() async throws -> SystemOverview {
-        .empty
-    }
-}
-
 @Observable
 @MainActor
 final class AppModel {
     var selection: SidebarDestination = .overview
     private(set) var connectionState: ConnectionState = .disconnected
-    private(set) var activeTasks: [ActiveTask] = []
+    private(set) var activeTasks: [CoreTask] = []
     private(set) var overview: SystemOverview = .empty
     private(set) var isRefreshing = false
     private(set) var lastErrorMessage: String?
