@@ -29,4 +29,25 @@ final class JSONLineTransportTests: XCTestCase {
             XCTAssertEqual(error as? JSONLineDecoderError, .frameTooLarge(maxBytes: 4))
         }
     }
+
+    func testBundledSidecarConfigurationPreservesSourceLayout() throws {
+        let resources = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let sidecarRoot = resources.appendingPathComponent("Sidecar", isDirectory: true)
+        let entryDirectory = sidecarRoot.appendingPathComponent("sidecar", isDirectory: true)
+        try FileManager.default.createDirectory(at: entryDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: resources) }
+
+        let nodeURL = sidecarRoot.appendingPathComponent("node")
+        FileManager.default.createFile(atPath: nodeURL.path, contents: Data())
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: nodeURL.path)
+        let mainURL = entryDirectory.appendingPathComponent("main.js")
+        FileManager.default.createFile(atPath: mainURL.path, contents: Data())
+
+        let configuration = try SidecarProcess.Configuration.bundled(resourceURL: resources)
+
+        XCTAssertEqual(configuration.nodeURL, nodeURL)
+        XCTAssertEqual(configuration.mainScriptURL, mainURL)
+        XCTAssertEqual(configuration.workingDirectoryURL, sidecarRoot)
+    }
 }

@@ -59,7 +59,9 @@ actor SidecarProcess {
             }
             let sidecarURL = resourceURL.appendingPathComponent("Sidecar", isDirectory: true)
             let nodeURL = sidecarURL.appendingPathComponent("node", isDirectory: false)
-            let mainURL = sidecarURL.appendingPathComponent("main.js", isDirectory: false)
+            let mainURL = sidecarURL
+                .appendingPathComponent("sidecar", isDirectory: true)
+                .appendingPathComponent("main.js", isDirectory: false)
             guard FileManager.default.isExecutableFile(atPath: nodeURL.path) else {
                 throw SidecarProcessError.bundledRuntimeMissing(nodeURL.path)
             }
