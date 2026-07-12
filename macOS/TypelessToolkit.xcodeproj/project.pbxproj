@@ -12,6 +12,11 @@
 		A10000000000000000000023 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000033 /* RootView.swift */; };
 		A10000000000000000000024 /* TestDoubles.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000034 /* TestDoubles.swift */; };
 		A10000000000000000000025 /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000035 /* AppModelTests.swift */; };
+		A10000000000000000000026 /* ProtocolMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000038 /* ProtocolMessages.swift */; };
+		A10000000000000000000027 /* JSONLineTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000039 /* JSONLineTransport.swift */; };
+		A10000000000000000000028 /* SidecarProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000003A /* SidecarProcess.swift */; };
+		A10000000000000000000029 /* EventRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000003B /* EventRouter.swift */; };
+		A1000000000000000000002A /* JSONLineTransportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000003C /* JSONLineTransportTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,6 +40,11 @@
 		A10000000000000000000035 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
 		A10000000000000000000036 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000037 /* TypelessToolkit.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TypelessToolkit.entitlements; sourceTree = "<group>"; };
+		A10000000000000000000038 /* ProtocolMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolMessages.swift; sourceTree = "<group>"; };
+		A10000000000000000000039 /* JSONLineTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONLineTransport.swift; sourceTree = "<group>"; };
+		A1000000000000000000003A /* SidecarProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidecarProcess.swift; sourceTree = "<group>"; };
+		A1000000000000000000003B /* EventRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRouter.swift; sourceTree = "<group>"; };
+		A1000000000000000000003C /* JSONLineTransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONLineTransportTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -50,13 +60,13 @@
 		};
 		A10000000000000000000005 /* TypelessToolkit */ = {
 			isa = PBXGroup;
-			children = (A10000000000000000000008 /* App */, A10000000000000000000009 /* Features */, A10000000000000000000036 /* Info.plist */, A10000000000000000000037 /* TypelessToolkit.entitlements */);
+			children = (A10000000000000000000008 /* App */, A1000000000000000000000B /* CoreIPC */, A10000000000000000000009 /* Features */, A10000000000000000000036 /* Info.plist */, A10000000000000000000037 /* TypelessToolkit.entitlements */);
 			path = TypelessToolkit;
 			sourceTree = "<group>";
 		};
 		A10000000000000000000006 /* TypelessToolkitTests */ = {
 			isa = PBXGroup;
-			children = (A10000000000000000000034 /* TestDoubles.swift */, A10000000000000000000035 /* AppModelTests.swift */);
+			children = (A10000000000000000000034 /* TestDoubles.swift */, A10000000000000000000035 /* AppModelTests.swift */, A1000000000000000000003C /* JSONLineTransportTests.swift */);
 			path = TypelessToolkitTests;
 			sourceTree = "<group>";
 		};
@@ -76,6 +86,12 @@
 			isa = PBXGroup;
 			children = (A1000000000000000000000A /* Root */);
 			path = Features;
+			sourceTree = "<group>";
+		};
+		A1000000000000000000000B /* CoreIPC */ = {
+			isa = PBXGroup;
+			children = (A10000000000000000000038 /* ProtocolMessages.swift */, A10000000000000000000039 /* JSONLineTransport.swift */, A1000000000000000000003A /* SidecarProcess.swift */, A1000000000000000000003B /* EventRouter.swift */);
+			path = CoreIPC;
 			sourceTree = "<group>";
 		};
 		A1000000000000000000000A /* Root */ = {
@@ -134,8 +150,8 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A10000000000000000000052 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000020, A10000000000000000000021, A10000000000000000000022, A10000000000000000000023); runOnlyForDeploymentPostprocessing = 0; };
-		A10000000000000000000053 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000024, A10000000000000000000025); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000052 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000020, A10000000000000000000021, A10000000000000000000022, A10000000000000000000023, A10000000000000000000026, A10000000000000000000027, A10000000000000000000028, A10000000000000000000029); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000053 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000024, A10000000000000000000025, A1000000000000000000002A); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
