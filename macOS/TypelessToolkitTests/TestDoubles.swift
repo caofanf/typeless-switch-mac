@@ -17,10 +17,28 @@ final class MockCoreClient: CoreClientProtocol {
     var accountDictionaryValue = AccountDictionary(words: [])
     var masterDictionaryValue = MasterDictionary(words: [])
     var accountSyncTask = CoreTask(id: "sync-account", type: "sync-account", state: .queued, cancellable: true, progress: nil, result: nil, error: nil)
+    var backupInspection = BackupInspection(
+        inspectionID: "inspection-1",
+        expiresAt: Date(timeIntervalSince1970: 4_000_000_000),
+        summary: .init(type: "typeless-toolkit-macos-runtime-backup", version: 1, createdAt: nil, fileCount: 3, size: 1_024)
+    )
+    var restoreTask = CoreTask(id: "restore-1", type: "backup-restore", state: .succeeded, cancellable: false, progress: nil, result: nil, error: nil)
+    var deviceResetTask = CoreTask(id: "reset-1", type: "device-reset", state: .queued, cancellable: true, progress: nil, result: nil, error: nil)
+    var patchTask = CoreTask(id: "patch-1", type: "patch", state: .queued, cancellable: true, progress: nil, result: nil, error: nil)
+    var backupStatusValue = SystemOverview.empty.backup
+    var exportedPath = PathResult(path: "/tmp/export.json")
+    var diagnosticReportValue: DiagnosticReport?
+    var deviceStatusValue = DeviceStatus(connection: .disconnected, backup: SystemOverview.empty.backup)
+    var patchStatusValue = SystemOverview.empty.patch
+    var versionStatusValue = SystemOverview.empty.version
+    var restoreError: Error?
     var onDeleteWord: (() -> Void)?
     var onEstablishConnection: (() -> Void)?
     var onCaptureCurrentAccount: (() -> Void)?
     var onSaveCapture: (() -> Void)?
+    var onInspectBackup: (() -> Void)?
+    var onPrepareOperation: ((String) -> Void)?
+    var onRestoreBackup: (() -> Void)?
     private(set) var establishConnectionCallCount = 0
     private(set) var syncAllCallCount = 0
     private(set) var savedCaptureID: String?
@@ -36,6 +54,14 @@ final class MockCoreClient: CoreClientProtocol {
     private(set) var replaceMasterCallCount = 0
     private(set) var replacedMasterTerms: [String] = []
     private(set) var cancelledTaskIDs: [String] = []
+    private(set) var inspectedBackupPaths: [String] = []
+    private(set) var restoredInspectionIDs: [String] = []
+    private(set) var resetDeviceCallCount = 0
+    private(set) var patchApplyActions: [String] = []
+    private(set) var createBackupCallCount = 0
+    private(set) var exportedBackupPaths: [String] = []
+    private(set) var diagnosticsCallCount = 0
+    private(set) var acknowledgeVersionCallCount = 0
 
     func getOverview() async throws -> SystemOverview {
         if let overviewError { throw overviewError }
@@ -65,6 +91,7 @@ final class MockCoreClient: CoreClientProtocol {
 
     func prepareOperation(method: String, params: JSONValue, summary: JSONValue) async throws -> Confirmation {
         preparedMethods.append(method)
+        onPrepareOperation?(method)
         return confirmation
     }
 
@@ -106,6 +133,59 @@ final class MockCoreClient: CoreClientProtocol {
         replacedMasterTerms = terms
         usedConfirmationToken = confirmationToken
         return masterDictionaryValue
+    }
+
+    func backupStatus() async throws -> BackupStatus { backupStatusValue }
+
+    func createBackup() async throws -> BackupStatus {
+        createBackupCallCount += 1
+        return backupStatusValue
+    }
+
+    func exportBackup(to path: String) async throws -> PathResult {
+        exportedBackupPaths.append(path)
+        return exportedPath
+    }
+
+    func diagnostics() async throws -> DiagnosticReport {
+        diagnosticsCallCount += 1
+        guard let diagnosticReportValue else { throw CoreError.transport(message: "missing diagnostics") }
+        return diagnosticReportValue
+    }
+
+    func deviceStatus() async throws -> DeviceStatus { deviceStatusValue }
+    func patchStatus() async throws -> PatchStatus { patchStatusValue }
+    func versionStatus() async throws -> VersionStatus { versionStatusValue }
+
+    func acknowledgeVersion() async throws -> VersionStatus {
+        acknowledgeVersionCallCount += 1
+        return versionStatusValue
+    }
+
+    func inspectBackup(at path: String) async throws -> BackupInspection {
+        inspectedBackupPaths.append(path)
+        onInspectBackup?()
+        return backupInspection
+    }
+
+    func restoreBackup(inspectionID: String, confirmationToken: String) async throws -> CoreTask {
+        restoredInspectionIDs.append(inspectionID)
+        usedConfirmationToken = confirmationToken
+        onRestoreBackup?()
+        if let restoreError { throw restoreError }
+        return restoreTask
+    }
+
+    func resetDevice(confirmationToken: String) async throws -> CoreTask {
+        resetDeviceCallCount += 1
+        usedConfirmationToken = confirmationToken
+        return deviceResetTask
+    }
+
+    func applyPatch(action: String, confirmationToken: String) async throws -> CoreTask {
+        patchApplyActions.append(action)
+        usedConfirmationToken = confirmationToken
+        return patchTask
     }
 
     func cancelTask(id: String) async throws -> TaskCancellationResult {

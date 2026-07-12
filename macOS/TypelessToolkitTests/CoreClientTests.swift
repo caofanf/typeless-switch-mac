@@ -45,6 +45,39 @@ final class CoreClientTests: XCTestCase {
         XCTAssertEqual(lastMethod, "operations.prepare")
     }
 
+    func testDiagnosticsDecodesDetailedSanitizedStatus() async throws {
+        let transport = MockRPCTransport(result: .object([
+            "typeless": .object([
+                "app_path": .string("/Applications/Typeless.app"), "app_found": .bool(true),
+                "bin_path": .string("/Typeless"), "bin_found": .bool(true),
+                "asar_path": .string("/app.asar"), "asar_found": .bool(true),
+                "info_plist": .string("/Info.plist"), "info_plist_found": .bool(true),
+                "user_data_dir": .string("/user-data"), "user_data_found": .bool(true)
+            ]),
+            "cdp": .object(["port": .number(9222), "reachable": .bool(false), "state": .string("disconnected")]),
+            "data": .object([
+                "dir": .string("/toolkit"), "code_dir": .string("/code"), "writable": .bool(true),
+                "migration": .object(["status": .string("none")]),
+                "accounts_file": .string("/accounts.json"), "accounts_count": .number(2),
+                "profiles_dir": .string("/profiles"), "runtime_backups_dir": .string("/backups"),
+                "backup": diagnosticBackupJSON
+            ]),
+            "connection": diagnosticConnectionJSON,
+            "version": .object(["current": .string("1.2.3"), "last_seen": .string("1.2.3"), "drifted": .bool(false)]),
+            "backup": diagnosticBackupJSON,
+            "patch": .object(["exists": .bool(true), "patched": .bool(true)])
+        ]))
+        let client = LiveCoreClient(transport: transport)
+
+        let report = try await client.diagnostics()
+
+        XCTAssertTrue(report.typeless.appFound)
+        XCTAssertFalse(report.cdp.reachable)
+        XCTAssertEqual(report.data.directory, "/toolkit")
+        XCTAssertEqual(report.data.accountCount, 2)
+        XCTAssertEqual(report.data.migration.objectValue?["status"]?.stringValue, "none")
+    }
+
     func testUnknownRemoteErrorPreservesCodeAndRecoveryDetails() async {
         let transport = FailingRPCTransport(payload: JSONRPCErrorPayload(
             code: "FUTURE_ERROR",
@@ -68,6 +101,17 @@ final class CoreClientTests: XCTestCase {
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
+    }
+
+    private var diagnosticConnectionJSON: JSONValue {
+        .object(["state": .string("disconnected"), "port": .number(9222), "cdp_reachable": .bool(false)])
+    }
+
+    private var diagnosticBackupJSON: JSONValue {
+        .object([
+            "status": .string("no_data"), "backed_up": .bool(false), "has_data": .bool(false),
+            "sources": .array([]), "backup_dir": .string("/backups")
+        ])
     }
 
 }

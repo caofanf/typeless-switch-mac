@@ -76,6 +76,37 @@ struct PendingMasterReplacement: Identifiable, Equatable, Sendable {
     var id: String { confirmation.token }
 }
 
+
+enum BackupRestorePhase: Equatable, Sendable {
+    case idle
+    case selecting
+    case inspecting
+    case reviewing
+    case preparingConfirmation
+    case restoring
+    case completed
+    case failed
+}
+
+struct PendingBackupRestore: Identifiable, Equatable, Sendable {
+    let inspection: BackupInspection
+    let confirmation: Confirmation
+
+    var id: String { confirmation.token }
+}
+
+enum AdvancedOperationKind: Equatable, Sendable {
+    case deviceReset
+    case patch(action: String)
+}
+
+struct PendingAdvancedOperation: Identifiable, Equatable, Sendable {
+    let kind: AdvancedOperationKind
+    let confirmation: Confirmation
+
+    var id: String { confirmation.token }
+}
+
 @Observable
 @MainActor
 final class AppModel {
@@ -104,6 +135,22 @@ final class AppModel {
     private(set) var pendingMasterReplacement: PendingMasterReplacement?
     private(set) var isReplacingMasterDictionary = false
     private(set) var taskCancellationNotice: String?
+    private(set) var backupStatus = SystemOverview.empty.backup
+    private(set) var isCreatingBackup = false
+    private(set) var isExportingBackup = false
+    private(set) var exportedBackupPath: String?
+    private(set) var backupRestorePhase: BackupRestorePhase = .idle
+    private(set) var pendingBackupInspection: BackupInspection?
+    private(set) var pendingBackupRestore: PendingBackupRestore?
+    private(set) var requiresBackupReinspection = false
+    private(set) var diagnosticReport: DiagnosticReport?
+    private(set) var isRunningDiagnostics = false
+    private(set) var deviceStatus: DeviceStatus?
+    private(set) var advancedPatchStatus: PatchStatus?
+    private(set) var advancedVersionStatus: VersionStatus?
+    private(set) var isRefreshingAdvancedTools = false
+    private(set) var pendingAdvancedOperation: PendingAdvancedOperation?
+    private(set) var isPerformingAdvancedOperation = false
     private var dictionaryTaskIDsByAccount: [String: String] = [:]
 
     private let coreClient: any CoreClientProtocol
@@ -452,6 +499,241 @@ final class AppModel {
         }
     }
 
+    func refreshBackupStatus() async {
+        do {
+            backupStatus = try await coreClient.backupStatus()
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法读取备份状态。请稍后重试。"
+        }
+    }
+
+    func createBackup() async {
+        guard !isCreatingBackup else { return }
+        isCreatingBackup = true
+        defer { isCreatingBackup = false }
+        do {
+            backupStatus = try await coreClient.createBackup()
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法创建备份。请确认数据目录可写。"
+        }
+    }
+
+    func exportBackup(to path: String) async {
+        guard !path.isEmpty, !isExportingBackup else { return }
+        isExportingBackup = true
+        defer { isExportingBackup = false }
+        do {
+            exportedBackupPath = try await coreClient.exportBackup(to: path).path
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法导出备份。请检查目标位置的写入权限。"
+        }
+    }
+
+    func runDiagnostics() async {
+        guard !isRunningDiagnostics else { return }
+        isRunningDiagnostics = true
+        defer { isRunningDiagnostics = false }
+        do {
+            diagnosticReport = try await coreClient.diagnostics()
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "诊断未完成。请稍后重试。"
+        }
+    }
+
+    func refreshAdvancedTools() async {
+        guard !isRefreshingAdvancedTools else { return }
+        isRefreshingAdvancedTools = true
+        defer { isRefreshingAdvancedTools = false }
+        do {
+            deviceStatus = try await coreClient.deviceStatus()
+            advancedPatchStatus = try await coreClient.patchStatus()
+            advancedVersionStatus = try await coreClient.versionStatus()
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法读取高级工具状态。请稍后重试。"
+        }
+    }
+
+    func acknowledgeCurrentVersion() async {
+        do {
+            advancedVersionStatus = try await coreClient.acknowledgeVersion()
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "无法确认当前 Typeless 版本。"
+        }
+    }
+
+    func beginBackupSelection() {
+        backupRestorePhase = .selecting
+        pendingBackupInspection = nil
+        pendingBackupRestore = nil
+        requiresBackupReinspection = false
+        lastErrorMessage = nil
+    }
+
+    func inspectBackup(at path: String) async {
+        guard !path.isEmpty else { return }
+        backupRestorePhase = .inspecting
+        pendingBackupInspection = nil
+        pendingBackupRestore = nil
+        lastErrorMessage = nil
+
+        do {
+            pendingBackupInspection = try await coreClient.inspectBackup(at: path)
+            requiresBackupReinspection = false
+            backupRestorePhase = .reviewing
+        } catch {
+            backupRestorePhase = .failed
+            lastErrorMessage = "无法检查备份文件。请选择有效的工具包备份。"
+        }
+    }
+
+    func prepareBackupRestore() async {
+        guard backupRestorePhase == .reviewing,
+              !requiresBackupReinspection,
+              let inspection = pendingBackupInspection else { return }
+        backupRestorePhase = .preparingConfirmation
+        let params: JSONValue = .object(["inspection_id": .string(inspection.inspectionID)])
+        let summary: JSONValue = .object([
+            "title": .string("恢复备份"),
+            "message": .string("当前工具包数据将由所选备份替换。恢复前会自动创建安全备份。"),
+            "destructive": .bool(true),
+        ])
+
+        do {
+            let confirmation = try await coreClient.prepareOperation(
+                method: "backup.restore",
+                params: params,
+                summary: summary
+            )
+            pendingBackupRestore = .init(inspection: inspection, confirmation: confirmation)
+            lastErrorMessage = nil
+        } catch {
+            backupRestorePhase = .reviewing
+            lastErrorMessage = "无法准备恢复操作。请重新检查备份后重试。"
+        }
+    }
+
+    func cancelBackupRestoreConfirmation() {
+        guard backupRestorePhase != .restoring else { return }
+        pendingBackupRestore = nil
+        backupRestorePhase = pendingBackupInspection == nil ? .selecting : .reviewing
+    }
+
+    func confirmBackupRestore() async {
+        guard let operation = pendingBackupRestore else { return }
+        backupRestorePhase = .restoring
+        lastErrorMessage = nil
+
+        do {
+            let task = try await coreClient.restoreBackup(
+                inspectionID: operation.inspection.inspectionID,
+                confirmationToken: operation.confirmation.token
+            )
+            upsertTask(task)
+            pendingBackupRestore = nil
+            backupRestorePhase = task.state == .succeeded ? .completed : .restoring
+        } catch let error as CoreError {
+            pendingBackupRestore = nil
+            if case .backupChanged = error {
+                pendingBackupInspection = nil
+                requiresBackupReinspection = true
+                backupRestorePhase = .reviewing
+                lastErrorMessage = "备份文件在检查后发生变化。请重新选择并检查该文件。"
+            } else {
+                backupRestorePhase = .failed
+                lastErrorMessage = "恢复操作未完成。请重新检查备份后重试。"
+            }
+        } catch {
+            pendingBackupRestore = nil
+            backupRestorePhase = .failed
+            lastErrorMessage = "恢复操作未完成。请重新检查备份后重试。"
+        }
+    }
+
+    func prepareDeviceReset() async {
+        await prepareAdvancedOperation(
+            kind: .deviceReset,
+            method: "device.reset",
+            params: .object([:]),
+            summary: .object([
+                "title": .string("重置设备标识"),
+                "message": .string("将备份当前数据，然后重置本机设备标识。"),
+                "destructive": .bool(true),
+            ])
+        )
+    }
+
+    func confirmDeviceReset() async {
+        guard case .deviceReset? = pendingAdvancedOperation?.kind else { return }
+        await confirmAdvancedOperation()
+    }
+
+    func preparePatchApplication(action: String) async {
+        let params: JSONValue = .object(["action": .string(action)])
+        await prepareAdvancedOperation(
+            kind: .patch(action: action),
+            method: "patch.apply",
+            params: params,
+            summary: .object([
+                "title": .string("应用 Typeless 补丁"),
+                "message": .string("将备份当前文件，然后修改 Typeless 应用资源。"),
+                "destructive": .bool(true),
+            ])
+        )
+    }
+
+    func confirmPatchApplication() async {
+        guard case .patch? = pendingAdvancedOperation?.kind else { return }
+        await confirmAdvancedOperation()
+    }
+
+    func cancelPendingAdvancedOperation() {
+        pendingAdvancedOperation = nil
+    }
+
+    private func prepareAdvancedOperation(
+        kind: AdvancedOperationKind,
+        method: String,
+        params: JSONValue,
+        summary: JSONValue
+    ) async {
+        do {
+            let confirmation = try await coreClient.prepareOperation(method: method, params: params, summary: summary)
+            pendingAdvancedOperation = .init(kind: kind, confirmation: confirmation)
+            lastErrorMessage = nil
+        } catch {
+            pendingAdvancedOperation = nil
+            lastErrorMessage = "无法准备高风险操作。请刷新状态后重试。"
+        }
+    }
+
+    private func confirmAdvancedOperation() async {
+        guard let operation = pendingAdvancedOperation, !isPerformingAdvancedOperation else { return }
+        isPerformingAdvancedOperation = true
+        defer { isPerformingAdvancedOperation = false }
+        lastErrorMessage = nil
+
+        do {
+            let task: CoreTask
+            switch operation.kind {
+            case .deviceReset:
+                task = try await coreClient.resetDevice(confirmationToken: operation.confirmation.token)
+            case let .patch(action):
+                task = try await coreClient.applyPatch(action: action, confirmationToken: operation.confirmation.token)
+            }
+            upsertTask(task)
+            pendingAdvancedOperation = nil
+        } catch {
+            pendingAdvancedOperation = nil
+            lastErrorMessage = "高风险操作未完成。确认可能已过期，请重新尝试。"
+        }
+    }
+
     private func dictionaryTermKey(_ term: String) -> String {
         term.trimmingCharacters(in: .whitespacesAndNewlines)
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
@@ -473,6 +755,7 @@ final class AppModel {
         do {
             let latest = try await coreClient.getOverview()
             overview = latest
+            backupStatus = latest.backup
             accounts = latest.accounts
             connectionState = latest.connectionState
             activeTasks = latest.activeTasks

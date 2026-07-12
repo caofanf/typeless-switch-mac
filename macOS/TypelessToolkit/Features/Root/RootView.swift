@@ -53,11 +53,11 @@ struct RootView: View {
         case .masterDictionary:
             MasterDictionaryView(model: model)
         case .backupRestore:
-            PlaceholderView(title: "备份与恢复", message: "创建、导出、检查和恢复工具包数据。", systemImage: "externaldrive.badge.timemachine")
+            BackupRestoreView(model: model)
         case .diagnostics:
-            PlaceholderView(title: "诊断", message: "检查 Typeless、连接和本地数据状态。", systemImage: "stethoscope")
+            DiagnosticsView(model: model)
         case .advancedTools:
-            PlaceholderView(title: "高级工具", message: "谨慎使用设备重置、补丁和版本工具。", systemImage: "wrench.and.screwdriver")
+            AdvancedToolsView(model: model)
         case .settings:
             PlaceholderView(title: "设置", message: "调整启动、窗口和菜单栏行为。", systemImage: "gearshape")
         }

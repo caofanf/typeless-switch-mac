@@ -141,6 +141,68 @@ struct BackupInspection: Codable, Equatable, Sendable {
 }
 struct PathResult: Codable, Equatable, Sendable { let path: String }
 struct DeviceStatus: Codable, Equatable, Sendable { let connection: ConnectionStatus; let backup: BackupStatus }
+
+struct DiagnosticTypelessStatus: Codable, Equatable, Sendable {
+    let appPath: String
+    let appFound: Bool
+    let binPath: String
+    let binFound: Bool
+    let asarPath: String
+    let asarFound: Bool
+    let infoPlist: String
+    let infoPlistFound: Bool
+    let userDataDirectory: String
+    let userDataFound: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case appPath = "app_path"
+        case appFound = "app_found"
+        case binPath = "bin_path"
+        case binFound = "bin_found"
+        case asarPath = "asar_path"
+        case asarFound = "asar_found"
+        case infoPlist = "info_plist"
+        case infoPlistFound = "info_plist_found"
+        case userDataDirectory = "user_data_dir"
+        case userDataFound = "user_data_found"
+    }
+}
+
+struct DiagnosticCDPStatus: Codable, Equatable, Sendable {
+    let port: Int
+    let reachable: Bool
+    let state: ConnectionState
+}
+
+struct DiagnosticDataStatus: Codable, Equatable, Sendable {
+    let directory: String
+    let codeDirectory: String
+    let writable: Bool
+    let migration: JSONValue
+    let accountsFile: String
+    let accountCount: Int
+    let profilesDirectory: String
+    let runtimeBackupsDirectory: String
+    let backup: BackupStatus
+
+    enum CodingKeys: String, CodingKey {
+        case directory = "dir"
+        case codeDirectory = "code_dir"
+        case writable, migration
+        case accountsFile = "accounts_file"
+        case accountCount = "accounts_count"
+        case profilesDirectory = "profiles_dir"
+        case runtimeBackupsDirectory = "runtime_backups_dir"
+        case backup
+    }
+}
+
 struct DiagnosticReport: Codable, Equatable, Sendable {
-    let connection: ConnectionStatus; let version: VersionStatus; let backup: BackupStatus; let patch: PatchStatus
+    let typeless: DiagnosticTypelessStatus
+    let cdp: DiagnosticCDPStatus
+    let data: DiagnosticDataStatus
+    let connection: ConnectionStatus
+    let version: VersionStatus
+    let backup: BackupStatus
+    let patch: PatchStatus
 }

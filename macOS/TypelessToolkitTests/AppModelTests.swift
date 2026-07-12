@@ -272,6 +272,140 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.taskCancellationNotice, "将在当前账号同步结束后取消")
     }
 
+    func testBackupRestoreMovesThroughInspectionReviewConfirmationAndCompletion() async {
+        let client = MockCoreClient()
+        client.confirmation = makeConfirmation(summary: .object(["title": .string("恢复备份")]))
+        let model = AppModel(coreClient: client)
+        var phases: [BackupRestorePhase] = []
+        client.onInspectBackup = { phases.append(model.backupRestorePhase) }
+        client.onPrepareOperation = { method in
+            if method == "backup.restore" { phases.append(model.backupRestorePhase) }
+        }
+        client.onRestoreBackup = { phases.append(model.backupRestorePhase) }
+
+        model.beginBackupSelection()
+        phases.append(model.backupRestorePhase)
+        await model.inspectBackup(at: "/tmp/runtime-backup.json")
+        phases.append(model.backupRestorePhase)
+        await model.prepareBackupRestore()
+        await model.confirmBackupRestore()
+        phases.append(model.backupRestorePhase)
+
+        XCTAssertEqual(phases, [.selecting, .inspecting, .reviewing, .preparingConfirmation, .restoring, .completed])
+        XCTAssertEqual(client.inspectedBackupPaths, ["/tmp/runtime-backup.json"])
+        XCTAssertEqual(client.preparedMethods, ["backup.restore"])
+        XCTAssertEqual(client.restoredInspectionIDs, ["inspection-1"])
+        XCTAssertEqual(client.usedConfirmationToken, "confirm-1")
+        XCTAssertEqual(model.activeTasks.map(\.id), ["restore-1"])
+    }
+
+    func testCancellingBackupConfirmationReturnsToReviewedInspection() async {
+        let client = MockCoreClient()
+        let model = AppModel(coreClient: client)
+        model.beginBackupSelection()
+        await model.inspectBackup(at: "/tmp/runtime-backup.json")
+        await model.prepareBackupRestore()
+
+        model.cancelBackupRestoreConfirmation()
+
+        XCTAssertEqual(model.backupRestorePhase, .reviewing)
+        XCTAssertEqual(model.pendingBackupInspection?.inspectionID, "inspection-1")
+        XCTAssertNil(model.pendingBackupRestore)
+    }
+
+    func testBackupChangedDuringRestoreReturnsToReviewAndRequiresReinspection() async {
+        let client = MockCoreClient()
+        client.confirmation = makeConfirmation(summary: .object(["title": .string("恢复备份")]))
+        client.restoreError = CoreError.backupChanged(
+            message: "备份文件在检查后发生变化",
+            details: .init(recoverable: true, suggestedAction: "backup.inspect", context: .object([:]))
+        )
+        let model = AppModel(coreClient: client)
+        model.beginBackupSelection()
+        await model.inspectBackup(at: "/tmp/runtime-backup.json")
+        await model.prepareBackupRestore()
+
+        await model.confirmBackupRestore()
+
+        XCTAssertEqual(model.backupRestorePhase, .reviewing)
+        XCTAssertTrue(model.requiresBackupReinspection)
+        XCTAssertNil(model.pendingBackupInspection)
+        XCTAssertEqual(client.restoredInspectionIDs, ["inspection-1"])
+
+        await model.prepareBackupRestore()
+        XCTAssertEqual(client.preparedMethods, ["backup.restore"])
+    }
+
+    func testDeviceResetAndPatchCannotExecuteBeforeConfirmation() async {
+        let client = MockCoreClient()
+        client.confirmation = makeConfirmation(summary: .object(["title": .string("高风险操作")]))
+        let model = AppModel(coreClient: client)
+
+        await model.confirmDeviceReset()
+        await model.confirmPatchApplication()
+        XCTAssertEqual(client.resetDeviceCallCount, 0)
+        XCTAssertTrue(client.patchApplyActions.isEmpty)
+
+        await model.prepareDeviceReset()
+        XCTAssertEqual(client.preparedMethods, ["device.reset"])
+        XCTAssertEqual(client.resetDeviceCallCount, 0)
+        await model.confirmDeviceReset()
+
+        await model.preparePatchApplication(action: "apply")
+        XCTAssertEqual(client.preparedMethods, ["device.reset", "patch.apply"])
+        XCTAssertTrue(client.patchApplyActions.isEmpty)
+        await model.confirmPatchApplication()
+
+        XCTAssertEqual(client.resetDeviceCallCount, 1)
+        XCTAssertEqual(client.patchApplyActions, ["apply"])
+        XCTAssertEqual(model.activeTasks.map(\.id), ["reset-1", "patch-1"])
+    }
+
+    func testBackupActionsRefreshStatusAndKeepExportPath() async {
+        let client = MockCoreClient()
+        client.backupStatusValue = makeOverview().backup
+        client.exportedPath = .init(path: "/tmp/typeless-export.json")
+        let model = AppModel(coreClient: client)
+
+        await model.refreshBackupStatus()
+        await model.createBackup()
+        await model.exportBackup(to: "/chosen/export.json")
+
+        XCTAssertEqual(model.backupStatus.status, .backedUp)
+        XCTAssertEqual(client.createBackupCallCount, 1)
+        XCTAssertEqual(client.exportedBackupPaths, ["/chosen/export.json"])
+        XCTAssertEqual(model.exportedBackupPath, "/tmp/typeless-export.json")
+    }
+
+    func testDiagnosticsAndAdvancedStatusAreLoadedFromSanitizedCoreDTOs() async {
+        let client = MockCoreClient()
+        let overview = makeOverview()
+        client.diagnosticReportValue = DiagnosticReport(
+            typeless: .init(appPath: "/Applications/Typeless.app", appFound: true, binPath: "/bin", binFound: true, asarPath: "/app.asar", asarFound: true, infoPlist: "/Info.plist", infoPlistFound: true, userDataDirectory: "/data", userDataFound: true),
+            cdp: .init(port: 9222, reachable: false, state: .disconnected),
+            data: .init(directory: "/toolkit", codeDirectory: "/code", writable: true, migration: .object(["status": .string("none")]), accountsFile: "/toolkit/accounts.json", accountCount: 2, profilesDirectory: "/profiles", runtimeBackupsDirectory: "/backups", backup: overview.backup),
+            connection: overview.connection,
+            version: overview.version,
+            backup: overview.backup,
+            patch: overview.patch
+        )
+        client.deviceStatusValue = .init(connection: overview.connection, backup: overview.backup)
+        client.patchStatusValue = overview.patch
+        client.versionStatusValue = overview.version
+        let model = AppModel(coreClient: client)
+
+        await model.runDiagnostics()
+        await model.refreshAdvancedTools()
+        await model.acknowledgeCurrentVersion()
+
+        XCTAssertEqual(model.diagnosticReport?.data.accountCount, 2)
+        XCTAssertEqual(model.deviceStatus?.connection.state, .connected)
+        XCTAssertEqual(model.advancedPatchStatus?.patched, true)
+        XCTAssertEqual(model.advancedVersionStatus?.current, "1.2.3")
+        XCTAssertEqual(client.diagnosticsCallCount, 1)
+        XCTAssertEqual(client.acknowledgeVersionCallCount, 1)
+    }
+
     private func makeConfirmation(summary: JSONValue) -> Confirmation {
         Confirmation(token: "confirm-1", expiresAt: Date(timeIntervalSince1970: 4_000_000_000), summary: summary)
     }
