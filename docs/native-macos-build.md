@@ -234,6 +234,32 @@ xattr -dr com.apple.quarantine "/Applications/Typeless Toolkit.app"
 
 这不会把 App 变成已公证软件，只会移除当前文件的下载隔离标记。
 
+## Typeless 启动与权限归属
+
+Typeless Toolkit 必须通过 macOS LaunchServices 启动完整的 `Typeless.app`，不得直接执行
+`Contents/MacOS/Typeless`。直接执行内部二进制会让辅助功能或麦克风权限归到启动者，导致
+Typeless Onboarding 无法确认自身权限。
+
+CDP 参数始终通过参数数组传递，对应命令为：
+
+```bash
+/usr/bin/open -n <Typeless.app> --args --remote-debugging-port=9222
+```
+
+如需重新验证权限归属，用户应手动在以下位置删除旧的测试授权记录后再测试：
+
+```text
+系统设置 → 隐私与安全性 → 辅助功能
+系统设置 → 隐私与安全性 → 麦克风
+```
+
+仅删除 Typeless Toolkit、Typeless 或 Terminal 的相关测试记录；不得删除整个 TCC 数据库，
+也不得让应用或脚本自动重置系统权限。
+
+如果“解除升级弹窗”功能重新签名了 `Typeless.app`，Typeless 的代码身份会发生变化，macOS
+可能要求重新授予辅助功能和麦克风权限。权限验收必须分别记录原厂签名状态和补丁后 ad-hoc
+签名状态，不能把两者视为同一个 TCC 身份。
+
 ## 11. 常见问题
 
 ### 提示需要完整 Xcode

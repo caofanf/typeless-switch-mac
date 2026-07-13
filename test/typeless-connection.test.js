@@ -8,16 +8,87 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'tt-connection-'));
+const ORIGINAL_TYPELESS_APP = process.env.TYPELESS_APP;
 process.env.TYPELESS_DATA_DIR = DATA_DIR;
+process.env.TYPELESS_APP = process.execPath;
 
 const {
   CDP_PORT,
+  buildTypelessLaunchSpec,
   ensureApp,
+  launchTypeless,
   selectTypelessCdpTarget,
   typelessConnectionStatus,
 } = require('../lib/common');
 
-after(() => fs.rmSync(DATA_DIR, { recursive: true, force: true }));
+after(() => {
+  fs.rmSync(DATA_DIR, { recursive: true, force: true });
+  if (ORIGINAL_TYPELESS_APP === undefined) delete process.env.TYPELESS_APP;
+  else process.env.TYPELESS_APP = ORIGINAL_TYPELESS_APP;
+});
+
+test('Typeless 通过 LaunchServices 启动完整 app bundle', () => {
+  assert.deepStrictEqual(buildTypelessLaunchSpec({
+    appPath: '/Applications/Typeless.app',
+    port: 9333,
+  }), {
+    executable: '/usr/bin/open',
+    args: [
+      '-n',
+      '/Applications/Typeless.app',
+      '--args',
+      '--remote-debugging-port=9333',
+    ],
+  });
+});
+
+test('LaunchServices 启动参数保持数组边界且不经过 shell', () => {
+  const spec = buildTypelessLaunchSpec({
+    appPath: '/Applications/Typeless Preview.app',
+    port: 9222,
+  });
+  assert.equal(spec.executable, '/usr/bin/open');
+  assert.equal(spec.args[1], '/Applications/Typeless Preview.app');
+  assert.equal(spec.args.includes('shell'), false);
+  assert.equal(spec.args.length, 4);
+});
+
+test('缺少 Typeless app 路径时拒绝启动', () => {
+  assert.throws(
+    () => buildTypelessLaunchSpec({ appPath: '', port: 9222 }),
+    /Typeless\.app 路径未配置/,
+  );
+});
+
+test('launchTypeless 调用 open 后立即解除子进程引用', () => {
+  const calls = [];
+  const child = { unref: () => calls.push({ type: 'unref' }) };
+  const spawnFn = (executable, args, options) => {
+    calls.push({ type: 'spawn', executable, args, options });
+    return child;
+  };
+
+  launchTypeless({
+    appPath: '/Applications/Typeless.app',
+    port: 9222,
+    spawnFn,
+  });
+
+  assert.deepStrictEqual(calls, [
+    {
+      type: 'spawn',
+      executable: '/usr/bin/open',
+      args: [
+        '-n',
+        '/Applications/Typeless.app',
+        '--args',
+        '--remote-debugging-port=9222',
+      ],
+      options: { detached: true, stdio: 'ignore' },
+    },
+    { type: 'unref' },
+  ]);
+});
 
 test('CDP 只接受当前 Typeless app.asar 的主窗口,不回退到任意 page', () => {
   const asarPath = '/Applications/Typeless.app/Contents/Resources/app.asar';
