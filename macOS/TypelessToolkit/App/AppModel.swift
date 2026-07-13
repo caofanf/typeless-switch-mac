@@ -270,7 +270,11 @@ final class AppModel {
             addAccountPhase = .reviewing
         } catch {
             addAccountPhase = .failed
-            lastErrorMessage = "无法抓取当前账号。请确认 Typeless 已登录并保持运行。"
+            if case let CoreError.currentAccountUnavailable(message, _) = error {
+                lastErrorMessage = "无法抓取当前账号：\(message)"
+            } else {
+                lastErrorMessage = "无法抓取当前账号。请确认 Typeless 已登录并保持运行。"
+            }
         }
     }
 

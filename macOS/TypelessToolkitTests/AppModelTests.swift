@@ -141,6 +141,20 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.accounts.map(\.id), ["u2"])
     }
 
+    func testAddAccountShowsSafeCaptureFailureMessage() async {
+        let client = MockCoreClient()
+        client.captureError = CoreError.currentAccountUnavailable(
+            message: "未在 Typeless 页面中观察到登录授权请求",
+            details: .init(recoverable: true, suggestedAction: "accounts.captureCurrent", context: .object([:]))
+        )
+        let model = AppModel(coreClient: client)
+
+        await model.beginAddAccount()
+
+        XCTAssertEqual(model.addAccountPhase, .failed)
+        XCTAssertEqual(model.lastErrorMessage, "无法抓取当前账号：未在 Typeless 页面中观察到登录授权请求")
+    }
+
     func testDeleteAccountIsPreparedBeforeExecution() async {
         let client = MockCoreClient()
         client.confirmation = makeConfirmation(summary: .object([

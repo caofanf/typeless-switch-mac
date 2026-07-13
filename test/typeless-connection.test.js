@@ -14,8 +14,11 @@ process.env.TYPELESS_APP = process.execPath;
 
 const {
   CDP_PORT,
+  accountMetaFromUserInfo,
   buildTypelessLaunchSpec,
+  cleanupCaptureInstrumentation,
   ensureApp,
+  waitForCapturedBearer,
   launchTypeless,
   selectTypelessCdpTarget,
   typelessConnectionStatus,
@@ -25,6 +28,70 @@ after(() => {
   fs.rmSync(DATA_DIR, { recursive: true, force: true });
   if (ORIGINAL_TYPELESS_APP === undefined) delete process.env.TYPELESS_APP;
   else process.env.TYPELESS_APP = ORIGINAL_TYPELESS_APP;
+});
+
+test('账号捕获会等待稍后出现的授权请求', async () => {
+  const attempts = [];
+  let reads = 0;
+  const hit = await waitForCapturedBearer(async () => {
+    attempts.push('read');
+    reads += 1;
+    return reads < 3 ? [] : [{
+      url: 'https://api.typeless.com/user/get_user_info',
+      auth: 'Bearer token',
+    }];
+  }, {
+    attempts: 3,
+    pollDelayMs: 0,
+    sleep: async () => attempts.push('sleep'),
+  });
+
+  assert.equal(hit.auth, 'Bearer token');
+  assert.deepStrictEqual(attempts, ['read', 'sleep', 'read', 'sleep', 'read']);
+});
+
+test('账号资料中的姓名对象会归一化为 Swift 可解码的字符串', () => {
+  assert.deepStrictEqual(
+    accountMetaFromUserInfo({
+      name: { firstName: '治凡', lastName: '曹' },
+      email: 'user@example.com',
+      subscription_plan_name: 'free',
+    }, 'u1'),
+    { email: 'user@example.com', nickname: '曹治凡', role: 'free' },
+  );
+});
+
+test('账号捕获超时返回安全的阶段标识', async () => {
+  await assert.rejects(
+    waitForCapturedBearer(async () => [], { attempts: 2, pollDelayMs: 0, sleep: async () => {} }),
+    error => error.code === 'CAPTURE_TOKEN_TIMEOUT'
+      && error.message === '未在 Typeless 页面中观察到登录授权请求',
+  );
+});
+
+test('账号捕获轮询有总时限,不会被单次读取无限拖延', async () => {
+  await assert.rejects(
+    waitForCapturedBearer(
+      () => new Promise(resolve => setTimeout(() => resolve([]), 50)),
+      { timeoutMs: 5, attempts: 30, pollDelayMs: 0 },
+    ),
+    error => error.code === 'CAPTURE_TOKEN_TIMEOUT',
+  );
+});
+
+test('账号捕获完成后清除当前页面拦截器并移除后续页面注入', async () => {
+  const calls = [];
+  await cleanupCaptureInstrumentation(
+    async (method, params) => calls.push({ method, params }),
+    async expression => calls.push({ expression }),
+    'capture-script-id',
+  );
+
+  assert.equal(calls[0].expression.includes('__typelessCaptureCleanup'), true);
+  assert.deepStrictEqual(calls[1], {
+    method: 'Page.removeScriptToEvaluateOnNewDocument',
+    params: { identifier: 'capture-script-id' },
+  });
 });
 
 test('Typeless 通过 LaunchServices 启动完整 app bundle', () => {

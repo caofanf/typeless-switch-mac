@@ -11,6 +11,7 @@ final class MockCoreClient: CoreClientProtocol {
         cancellable: true, progress: nil, result: nil, error: nil
     )
     var capture = AccountCapture(captureID: "capture", userID: "u1", nickname: "", email: "", role: "", capturedAt: nil)
+    var captureError: Error?
     var savedAccount: Account?
     var accounts: [Account] = []
     var confirmation = Confirmation(token: "confirm", expiresAt: .distantFuture, summary: .object([:]))
@@ -80,6 +81,7 @@ final class MockCoreClient: CoreClientProtocol {
 
     func captureCurrentAccount() async throws -> AccountCapture {
         onCaptureCurrentAccount?()
+        if let captureError { throw captureError }
         return capture
     }
 

@@ -61,6 +61,41 @@ test('capture handle hides token and is consumed by save', async () => {
   }), error => error.code === 'CAPTURE_EXPIRED');
 });
 
+test('账号抓取超时时返回安全的阶段错误', async () => {
+  const service = createApplicationService({ core: {
+    captureTokenCDP: async () => {
+      const error = new Error('Bearer token should never reach the UI');
+      error.code = 'CAPTURE_TOKEN_TIMEOUT';
+      throw error;
+    },
+  }});
+
+  await assert.rejects(
+    () => service.execute('accounts.captureCurrent', {}),
+    error => error.code === 'CURRENT_ACCOUNT_UNAVAILABLE'
+      && error.message === '未在 Typeless 页面中观察到登录授权请求'
+      && error.details.context.stage === 'authorization_request',
+  );
+});
+
+test('账号抓取连接失败时返回安全且可恢复的连接阶段错误', async () => {
+  const service = createApplicationService({ core: {
+    captureTokenCDP: async () => {
+      const error = new Error('连接 Typeless WebSocket 超时 Bearer secret');
+      throw error;
+    },
+  }});
+
+  await assert.rejects(
+    () => service.execute('accounts.captureCurrent', {}),
+    error => error.code === 'CURRENT_ACCOUNT_UNAVAILABLE'
+      && error.message === '无法连接 Typeless 调试会话'
+      && error.details.suggested_action === 'connection.establish'
+      && error.details.context.stage === 'connection'
+      && !JSON.stringify(error).includes('Bearer secret'),
+  );
+});
+
 test('snapshots.switch requires a matching one-time confirmation', async () => {
   const calls = [];
   const service = createApplicationService({ core: {
