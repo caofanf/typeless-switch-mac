@@ -33,11 +33,27 @@ final class AppModelTests: XCTestCase {
         XCTAssertNil(runtime.model.lastErrorMessage)
     }
 
-    func testDefaultSelectionIsOverview() {
+    func testDefaultSelectionIsAccountsAndSidebarUsesPrimaryOrder() {
         let model = AppModel(coreClient: MockCoreClient())
 
-        XCTAssertEqual(model.selection, .overview)
+        XCTAssertEqual(model.selection, .accounts)
+        XCTAssertEqual(
+            SidebarDestination.allCases,
+            [.accounts, .masterDictionary, .backupRestore, .overview, .settings]
+        )
         XCTAssertEqual(model.connectionState, .disconnected)
+    }
+
+    func testAdvancedSettingsNavigationSelectsSettingsAndCreatesOneShotRequest() {
+        let model = AppModel(coreClient: MockCoreClient())
+
+        model.navigateToAdvancedSettings()
+
+        XCTAssertEqual(model.selection, .settings)
+        XCTAssertEqual(model.requestedSettingsSection, .advanced)
+
+        model.clearSettingsNavigationRequest()
+        XCTAssertNil(model.requestedSettingsSection)
     }
 
     func testRefreshOverviewUpdatesAllLightweightStatus() async {
@@ -465,6 +481,19 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(restored.refreshOnActivation)
         XCTAssertTrue(restored.notificationsEnabled)
         XCTAssertFalse(AppDelegate(preferences: restored).applicationShouldTerminateAfterLastWindowClosed(NSApplication.shared))
+    }
+
+    func testMenuBarExtraDefaultsOffAndPersistsExplicitChoices() {
+        let defaults = isolatedDefaults()
+
+        let fresh = AppPreferences(defaults: defaults)
+        XCTAssertFalse(fresh.showsMenuBarExtra)
+
+        fresh.showsMenuBarExtra = true
+        XCTAssertTrue(AppPreferences(defaults: defaults).showsMenuBarExtra)
+
+        fresh.showsMenuBarExtra = false
+        XCTAssertFalse(AppPreferences(defaults: defaults).showsMenuBarExtra)
     }
 
     func testForegroundRefreshHonorsPreference() async {

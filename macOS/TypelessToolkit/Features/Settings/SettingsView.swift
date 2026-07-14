@@ -3,8 +3,6 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var model: AppModel
     @Bindable private var preferences: AppPreferences
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     init(model: AppModel) {
         self.model = model
@@ -12,27 +10,39 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                header
-                behaviorSection
-                notificationsSection
-                activitySection
-                diagnosticsSection
-                accessibilitySection
-                versionSection
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    header
+                    behaviorSection
+                    notificationsSection
+                    versionSection
+
+                    Divider()
+                        .padding(.vertical, 2)
+
+                    advancedHeader
+                        .id(SettingsSection.advanced)
+                    AdvancedSettingsContent(model: model)
+                }
+                .padding(24)
+                .frame(maxWidth: 880, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
-            .padding(24)
-            .frame(maxWidth: 880, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .top)
+            .background(.background.secondary)
+            .task(id: model.requestedSettingsSection) {
+                guard let requestedSection = model.requestedSettingsSection else { return }
+                await Task.yield()
+                proxy.scrollTo(requestedSection, anchor: .top)
+                model.clearSettingsNavigationRequest()
+            }
         }
-        .background(reduceTransparency ? Color(nsColor: .windowBackgroundColor) : Color(nsColor: .underPageBackgroundColor))
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text("设置").font(.largeTitle.bold())
-            Text("调整窗口、菜单栏、通知和本地活动记录。")
+            Text("调整窗口、菜单栏、通知和 Typeless 高级功能。")
                 .foregroundStyle(.secondary)
         }
     }
@@ -41,7 +51,7 @@ struct SettingsView: View {
         GroupBox("App 行为") {
             VStack(alignment: .leading, spacing: 14) {
                 Toggle("在菜单栏显示状态图标", isOn: $preferences.showsMenuBarExtra)
-                    .accessibilityHint("关闭后可通过主窗口继续使用工具包。")
+                    .accessibilityHint("默认关闭；开启后可从系统菜单栏使用常用操作。")
                 Toggle("关闭最后一个窗口时退出 App", isOn: $preferences.quitAfterLastWindowClosed)
                     .disabled(!preferences.showsMenuBarExtra)
                     .accessibilityHint("关闭时若不退出，App 会留在菜单栏。")
@@ -60,68 +70,6 @@ struct SettingsView: View {
         }
     }
 
-    private var activitySection: some View {
-        GroupBox("最近活动") {
-            VStack(alignment: .leading, spacing: 12) {
-                Picker("保留数量", selection: activityLimitBinding) {
-                    ForEach(AppPreferences.allowedActivityLimits, id: \.self) { count in
-                        Text("\(count) 条").tag(count)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityValue("保留 \(preferences.recentActivityLimit) 条")
-
-                if model.recentActivities.isEmpty {
-                    Label("尚无活动记录", systemImage: "clock")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(model.recentActivities.prefix(8)) { activity in
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Image(systemName: activity.kind.systemImage).accessibilityHidden(true)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(activity.title)
-                                if let detail = activity.detail { Text(detail).font(.caption).foregroundStyle(.secondary) }
-                            }
-                            Spacer()
-                            Text(activity.occurredAt, style: .relative).font(.caption).foregroundStyle(.secondary)
-                        }
-                        .accessibilityElement(children: .combine)
-                    }
-                }
-
-                Button("清空活动记录", role: .destructive) { model.clearRecentActivities() }
-                    .disabled(model.recentActivities.isEmpty)
-            }
-            .padding(.vertical, 6)
-        }
-    }
-
-    private var diagnosticsSection: some View {
-        GroupBox("诊断日志") {
-            VStack(alignment: .leading, spacing: 10) {
-                Picker("日志级别", selection: $preferences.diagnosticLogLevel) {
-                    ForEach(DiagnosticLogLevel.allCases) { level in Text(level.title).tag(level) }
-                }
-                .pickerStyle(.radioGroup)
-                Label("调试级别只对当前运行有效；下次启动会自动恢复为信息级别。", systemImage: "lock.shield")
-                    .font(.callout).foregroundStyle(.secondary)
-            }
-            .padding(.vertical, 6)
-        }
-    }
-
-    private var accessibilitySection: some View {
-        GroupBox("辅助功能") {
-            VStack(alignment: .leading, spacing: 8) {
-                StatusView(title: "减少动态效果", detail: reduceMotion ? "已启用" : "未启用", tone: reduceMotion ? .good : .neutral)
-                StatusView(title: "降低透明度", detail: reduceTransparency ? "已启用" : "未启用", tone: reduceTransparency ? .good : .neutral)
-                Text("界面使用系统字体、语义色、文字与图标共同表达状态，并遵循系统辅助功能设置。")
-                    .font(.callout).foregroundStyle(.secondary)
-            }
-            .padding(.vertical, 6)
-        }
-    }
-
     private var versionSection: some View {
         GroupBox("版本") {
             VStack(alignment: .leading, spacing: 8) {
@@ -136,11 +84,14 @@ struct SettingsView: View {
         }
     }
 
-    private var activityLimitBinding: Binding<Int> {
-        Binding(
-            get: { preferences.recentActivityLimit },
-            set: { model.setRecentActivityLimit($0) }
-        )
+    private var advancedHeader: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("高级功能")
+                .font(.title2.bold())
+            Text("这些操作会修改 Typeless 或本机身份。执行前会自动备份并要求再次确认。")
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var appVersion: String {

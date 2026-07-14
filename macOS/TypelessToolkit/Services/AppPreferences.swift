@@ -60,7 +60,7 @@ final class AppPreferences {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        showsMenuBarExtra = Self.bool(defaults, key: Key.showsMenuBarExtra, fallback: true)
+        showsMenuBarExtra = Self.bool(defaults, key: Key.showsMenuBarExtra, fallback: false)
         quitAfterLastWindowClosed = Self.bool(defaults, key: Key.quitAfterLastWindowClosed, fallback: false)
         refreshOnActivation = Self.bool(defaults, key: Key.refreshOnActivation, fallback: true)
         notificationsEnabled = Self.bool(defaults, key: Key.notificationsEnabled, fallback: false)

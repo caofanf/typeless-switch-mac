@@ -105,7 +105,7 @@ struct OverviewView: View {
             StatusView(title: versionTitle, detail: model.overview.version.current, tone: versionTone)
             Spacer(minLength: 14)
             if model.overview.version.drifted {
-                Button("查看高级工具") { model.selection = .advancedTools }
+                Button("查看高级功能") { model.navigateToAdvancedSettings() }
             }
         }
     }

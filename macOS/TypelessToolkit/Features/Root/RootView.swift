@@ -54,18 +54,14 @@ struct RootView: View {
     @ViewBuilder
     private var destinationView: some View {
         switch model.selection {
-        case .overview:
-            OverviewView(model: model)
         case .accounts:
             AccountsView(model: model)
         case .masterDictionary:
             MasterDictionaryView(model: model)
         case .backupRestore:
             BackupRestoreView(model: model)
-        case .diagnostics:
-            DiagnosticsView(model: model)
-        case .advancedTools:
-            AdvancedToolsView(model: model)
+        case .overview:
+            OverviewView(model: model)
         case .settings:
             SettingsView(model: model)
         }

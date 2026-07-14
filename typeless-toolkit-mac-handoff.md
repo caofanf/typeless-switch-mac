@@ -1,15 +1,16 @@
-# Typeless Toolkit 原生 macOS App：1.0 最新交接
+# Typeless Toolkit 原生 macOS App：2.0 最新交接
 
 ## 1. 这份交接的用途
 
 本文是后续开发、修 Bug、维护发布链路时的当前事实来源。它取代早期只记录“调研/设计阶段”的交接内容。
 
-当前 1.0 已经是可直接运行的原生 macOS 桌面应用：SwiftUI 负责界面，App Bundle 内置 Node.js sidecar 负责业务核心；不依赖浏览器、WebView、终端常驻进程或 localhost 管理服务。
+当前 2.0 是可直接运行的原生 macOS 桌面应用：SwiftUI 负责界面，App Bundle 内置 Node.js sidecar 负责业务核心；不依赖浏览器、WebView、终端常驻进程或 localhost 管理服务。2.0 主要调整原生界面的信息架构，核心协议和业务能力继续兼容 1.0。
 
 ## 2. 当前版本与仓库状态
 
 - 仓库：`/Users/caozhifan/Documents/Git/typeless-toolkit-mac`
 - 分支：`Mac-UI`
+- App 版本：`2.0.0`（构建号 `2`）；Sidecar 核心和协议仍为 `1.0.0`。
 - 1.0 功能提交：`7fc4004 feat: complete native desktop app 1.0 release`
 - 上一个架构提交：`b90df71 fix: launch Typeless through macOS LaunchServices`
 - Git 操作仅限本地：不要 push、不要创建 PR，除非用户明确要求。
@@ -18,15 +19,15 @@
 
 工作区中的 `findings.md`、`progress.md`、`task_plan.md` 和本文属于调研/交接材料；不要使用 `git add .` 把历史材料、构建产物或用户自己的临时文件混入功能提交。
 
-## 3. 用户可见的 1.0 功能
+## 3. 用户可见的 2.0 功能
 
 ### 3.1 原生应用宿主
 
 - SwiftUI 原生主窗口，不使用 `WKWebView`。
-- Finder 风格 `NavigationSplitView` 侧边栏：概览、账号、主词库、备份与恢复、诊断、高级工具、设置。
+- Finder 风格 `NavigationSplitView` 侧边栏：账号、主词库、备份与恢复、概览、设置；启动后默认进入账号页。
 - 系统自适应视觉：系统字体、SF Symbols、语义色、浅色/深色模式、标准 macOS 控件。
-- 菜单栏状态入口可打开主窗口、显示连接/账号状态，并提供常用操作。
-- 应用激活时可以按设置刷新轻量状态；近期活动记录可配置保留数量并清空。
+- 菜单栏状态入口默认关闭；用户可在设置中主动开启原有的打开窗口、刷新、连接、同步和退出操作。
+- 应用激活时可以按设置刷新轻量状态；近期活动继续在内部记录，但不再作为设置页内容展示。
 
 ### 3.2 概览与连接
 
@@ -67,11 +68,11 @@
 - 运行时备份事务使用 staging、before-image、原子发布、提交后校验和失败回滚；启动时会恢复未完成事务。
 - 备份内容覆盖账号、主词库、profiles、配置、版本状态等 canonical 运行数据，不直接暴露 token 到 Swift/UI。
 
-### 3.6 诊断、版本和高级工具
+### 3.6 诊断、版本和高级功能
 
-- 诊断报告包含 Typeless App/asar/Info.plist/用户数据路径、CDP、运行数据目录、迁移、账号数量、备份、连接和版本状态。
+- 诊断报告能力继续供内部状态读取和排障使用，但不再提供独立侧栏页面。
 - 检测 Typeless 版本漂移；用户可确认当前版本作为基线。
-- 查看设备状态、数据目录和备份状态。
+- 设置页下方的“高级功能”集中展示设备状态、数据目录、版本漂移、补丁和高风险操作。
 - “重置设备标识”是高风险操作：服务端先准备一次性确认，再执行 Keychain/device cache/用户数据相关清理和重启流程。
 - “应用 Typeless 补丁”是高风险操作：检测目标 asar、显示可执行动作、二阶段确认、创建 before-image、原子修改、更新 Info.plist 完整性信息、ad-hoc 重签名、验证；失败时只回滚本次事务并再次校验。
 - 补丁状态包含目标是否存在、是否已修改、检测到的文件、备份和错误信息。
@@ -84,15 +85,14 @@
 - Swift 只展示公开 DTO；未知字段、token、Cookie、profile、堆栈和内部错误不会进入 UI/API。
 - 错误包含稳定 code、可恢复性、建议动作和安全 context；不能把底层异常原文直接显示给用户。
 
-### 3.8 设置与辅助功能
+### 3.8 设置与高级功能
 
-- 可开关菜单栏状态图标。
+- 可开关菜单栏状态图标；全新安装默认关闭，已有用户保存的选择不会被覆盖。
 - 可选择关闭最后一个窗口时退出，或让 App 留在菜单栏。
 - 可开关启动/返回前台自动刷新（前台期间按固定间隔刷新轻量状态）。
 - 可开关任务完成/失败系统通知；首次使用时请求 macOS 通知权限。
-- 最近活动可保留 25/50/100/200 条，也可一键清空。
-- 调试日志级别只对当前运行有效，重启后恢复为信息级别，避免持久化调试噪音。
-- 设置页显示 Reduce Motion、Reduce Transparency、App/核心/Node/协议/架构信息，并遵循系统辅助功能环境。
+- 设置页显示 App/核心/Node/协议/架构信息，并在下方承载全部高级功能。
+- 最近活动、诊断日志、Reduce Motion 和 Reduce Transparency 状态不再显示；界面仍遵循系统辅助功能环境。
 
 ## 4. 当前架构边界
 
@@ -166,7 +166,7 @@ Sidecar 不监听 localhost；stdout 只能输出协议帧，日志写 stderr。
 node --test test/*.test.js
 ```
 
-当前 1.0 基线：123 项通过。涉及本机回环监听的安全集成测试在受限沙箱中可能出现 `listen EPERM`；应在允许 `127.0.0.1` 的环境重跑，不能把沙箱限制误判成产品失败。
+当前核心基线：123 项通过。涉及本机回环监听的安全集成测试在受限沙箱中可能出现 `listen EPERM`；应在允许 `127.0.0.1` 的环境重跑，不能把沙箱限制误判成产品失败。
 
 ### Swift 测试
 
@@ -178,21 +178,21 @@ xcodebuild \
   test
 ```
 
-当前基线：37 项 Swift/XCTest 通过。
+当前 2.0 基线：39 项 Swift/XCTest 通过。
 
 ### Release 构建与 DMG
 
 ```bash
 scripts/build-release.sh
 scripts/package-dmg.sh
-scripts/verify-release.sh "dist/Typeless-Toolkit-1.0.0-arm64.dmg"
+scripts/verify-release.sh "dist/Typeless-Toolkit-2.0.0-arm64.dmg"
 ```
 
 产物：
 
 - `dist/Typeless Toolkit.app`
-- `dist/Typeless-Toolkit-1.0.0-arm64.dmg`
-- `dist/Typeless-Toolkit-1.0.0-arm64.dmg.sha256`
+- `dist/Typeless-Toolkit-2.0.0-arm64.dmg`
+- `dist/Typeless-Toolkit-2.0.0-arm64.dmg.sha256`
 
 Release 构建会准备 Sidecar、下载/校验 arm64 Node、构建 Swift App、复制 sidecar、ad-hoc 签名并验证。构建产物在 `.gitignore` 中，不应提交到 Git。
 
@@ -216,7 +216,7 @@ Release 构建会准备 Sidecar、下载/校验 arm64 Node、构建 Swift App、
 1. 加入 Developer ID 签名和 notarization（若用户以后需要公开分发）。
 2. 为 release 产物建立版本号、变更日志、SHA-256 和回滚说明。
 3. 评估是否需要 Intel 支持；当前协议、Node runtime 和构建脚本只保证 arm64。
-4. 若未来要进入 Mac App Store，需要重新设计沙盒权限和高风险功能边界，不应直接套用当前 1.0 架构。
+4. 若未来要进入 Mac App Store，需要重新设计沙盒权限和高风险功能边界，不应直接套用当前 2.0 架构。
 
 ## 8. 后续任务的标准工作流
 

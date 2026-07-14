@@ -3,39 +3,37 @@ import Observation
 
 /// 原生界面的顶层导航目标。
 enum SidebarDestination: String, CaseIterable, Identifiable, Sendable {
-    case overview
     case accounts
     case masterDictionary
     case backupRestore
-    case diagnostics
-    case advancedTools
+    case overview
     case settings
 
     var id: Self { self }
 
     var title: String {
         switch self {
-        case .overview: "概览"
         case .accounts: "账号"
         case .masterDictionary: "主词库"
         case .backupRestore: "备份与恢复"
-        case .diagnostics: "诊断"
-        case .advancedTools: "高级工具"
+        case .overview: "概览"
         case .settings: "设置"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .overview: "square.grid.2x2"
         case .accounts: "person.2"
         case .masterDictionary: "text.book.closed"
         case .backupRestore: "externaldrive.badge.timemachine"
-        case .diagnostics: "stethoscope"
-        case .advancedTools: "wrench.and.screwdriver"
+        case .overview: "square.grid.2x2"
         case .settings: "gearshape"
         }
     }
+}
+
+enum SettingsSection: Hashable, Sendable {
+    case advanced
 }
 
 enum AddAccountPhase: Equatable, Sendable {
@@ -110,7 +108,8 @@ struct PendingAdvancedOperation: Identifiable, Equatable, Sendable {
 @Observable
 @MainActor
 final class AppModel {
-    var selection: SidebarDestination = .overview
+    var selection: SidebarDestination = .accounts
+    private(set) var requestedSettingsSection: SettingsSection?
     private(set) var connectionState: ConnectionState = .disconnected
     private(set) var activeTasks: [CoreTask] = []
     private(set) var overview: SystemOverview = .empty
@@ -176,6 +175,15 @@ final class AppModel {
     func handleAppBecameActive() async {
         guard preferences.refreshOnActivation else { return }
         await refreshOverview()
+    }
+
+    func navigateToAdvancedSettings() {
+        requestedSettingsSection = .advanced
+        selection = .settings
+    }
+
+    func clearSettingsNavigationRequest() {
+        requestedSettingsSection = nil
     }
 
     func setRecentActivityLimit(_ limit: Int) {

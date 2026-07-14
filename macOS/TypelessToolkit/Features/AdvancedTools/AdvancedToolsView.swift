@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct AdvancedToolsView: View {
+struct AdvancedSettingsContent: View {
     @Bindable var model: AppModel
     private let fileDialogs = FileDialogService()
 
@@ -9,23 +9,17 @@ struct AdvancedToolsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                header
-                versionSection
-                patchSection
-                resetSection
-                dataSection
-                if let advancedTask { taskSection(advancedTask) }
-                if let message = model.lastErrorMessage {
-                    Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
-                }
+        VStack(alignment: .leading, spacing: 20) {
+            versionSection
+            patchSection
+            resetSection
+            dataSection
+            if let advancedTask { taskSection(advancedTask) }
+            if let message = model.lastErrorMessage {
+                Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
             }
-            .padding(24)
-            .frame(maxWidth: 880, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .top)
         }
-        .background(.background.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .task {
             await model.refreshAdvancedTools()
             if model.diagnosticReport == nil { await model.runDiagnostics() }
@@ -55,14 +49,6 @@ struct AdvancedToolsView: View {
 
     private var advancedConfirmationPresented: Binding<Bool> {
         Binding(get: { model.pendingAdvancedOperation != nil }, set: { if !$0, model.pendingAdvancedOperation != nil { model.cancelPendingAdvancedOperation() } })
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text("高级工具").font(.largeTitle.bold())
-            Text("这些操作会修改 Typeless 或本机身份。执行前会自动备份并要求再次确认。")
-                .foregroundStyle(.secondary)
-        }
     }
 
     private var versionSection: some View {
