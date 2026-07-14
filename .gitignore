@@ -27,6 +27,9 @@ dist/
 CPA/
 SUB2/
 
+# 设计讨论可视化陪伴的本地会话数据
+.superpowers/
+
 # 本地环境和构建缓存
 .env
 .env.*
