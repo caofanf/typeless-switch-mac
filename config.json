@@ -1,0 +1,15 @@
+{
+  "typeless_app": "",
+  "user_data_dir": "",
+  "device_cache_path": "",
+  "asar_path": "",
+  "cdp_port": 9222,
+  "api_base": "https://api.typeless.com",
+  "master_csv": "Typeless词库主清单.csv",
+  "paywall": {
+    "file_path": [],
+    "replacements": [],
+    "auto_detect_file": true,
+    "auto_detect_replacements": true
+  }
+}

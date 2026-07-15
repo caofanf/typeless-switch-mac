@@ -1,0 +1,36 @@
+# 用户运行时数据(含 token/词库,勿提交)
+accounts.json
+profiles/
+runtime-backups/
+patch-backups/
+typeless-version.json
+*.csv
+*.bak
+
+# 本地配置覆盖(用户私有,不进 git)
+config.local.json
+
+# 架构/暗知识文档(含补丁机理,仅本地留存,不公开)
+docs/architecture.md
+
+# 依赖
+node_modules/
+
+# 打包产物
+dist/
+
+# 备份与日志
+*.log
+.DS_Store
+
+# 本地临时数据/外部数据集
+CPA/
+SUB2/
+
+# 设计讨论可视化陪伴的本地会话数据
+.superpowers/
+
+# 本地环境和构建缓存
+.env
+.env.*
+build/
