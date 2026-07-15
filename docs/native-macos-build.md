@@ -1,6 +1,6 @@
 # 原生 macOS App 构建与分发
 
-本文说明如何在 Apple Silicon Mac 上从源码构建 Typeless Toolkit 原生 App、进行 ad-hoc 临时签名、生成未公证 DMG，并验证本地发布候选。
+本文说明如何在 Apple Silicon Mac 上从源码构建 Typeless Switch 原生 App、进行 ad-hoc 临时签名、生成未公证 DMG，并验证本地发布候选。
 
 ## 1. 分发模型
 
@@ -103,16 +103,16 @@ NODE_RUNTIME_PATH="$(command -v node)" scripts/build-debug.sh
 脚本会准备 Sidecar、运行 `xcodebuild`、把资源写入 App bundle、先签名 Node helper、再签名外层 App，并执行：
 
 ```bash
-codesign --verify --deep --strict "dist/Typeless Toolkit.app"
+codesign --verify --deep --strict "dist/Typeless Switch.app"
 ```
 
 输出：
 
 ```text
-dist/Typeless Toolkit.app
+dist/Typeless Switch.app
 ```
 
-Xcode 工程位于 `macOS/TypelessToolkit.xcodeproj`。直接使用 Xcode 适合编辑、测试和调试 Swift 代码；需要可独立启动且包含固定 Node Sidecar 的完整 App 时，请使用上述脚本完成资源注入和签名。
+Xcode 工程位于 `macOS/TypelessSwitch.xcodeproj`。直接使用 Xcode 适合编辑、测试和调试 Swift 代码；需要可独立启动且包含固定 Node Sidecar 的完整 App 时，请使用上述脚本完成资源注入和签名。
 
 ## 6. Release 构建
 
@@ -130,7 +130,7 @@ CODE_SIGNING_ALLOWED=NO
 
 Xcode 产物完成后，脚本执行以下步骤：
 
-1. 复制到 `dist/Typeless Toolkit.app`；
+1. 复制到 `dist/Typeless Switch.app`；
 2. 注入 `Contents/Resources/Sidecar/`；
 3. 附加 `THIRD_PARTY_NOTICES.md`；
 4. 对内置 Node helper 进行 ad-hoc 签名；
@@ -148,7 +148,7 @@ scripts/package-dmg.sh
 脚本使用 `hdiutil create -format UDZO` 生成压缩磁盘映像。安装布局包含：
 
 ```text
-Typeless Toolkit.app
+Typeless Switch.app
 Applications -> /Applications
 README-FIRST.txt
 ```
@@ -156,15 +156,15 @@ README-FIRST.txt
 输出示例：
 
 ```text
-dist/Typeless-Toolkit-2.0.0-arm64.dmg
-dist/Typeless-Toolkit-2.0.0-arm64.dmg.sha256
+dist/Typeless-Switch-1.0.0-arm64.dmg
+dist/Typeless-Switch-1.0.0-arm64.dmg.sha256
 ```
 
 校验下载或复制后的镜像：
 
 ```bash
 cd dist
-shasum -a 256 -c Typeless-Toolkit-2.0.0-arm64.dmg.sha256
+shasum -a 256 -c Typeless-Switch-1.0.0-arm64.dmg.sha256
 ```
 
 ## 8. 发布验证
@@ -176,7 +176,7 @@ scripts/verify-release.sh
 如 `dist/` 中存在多个版本的 DMG，请显式传入路径：
 
 ```bash
-scripts/verify-release.sh "dist/Typeless-Toolkit-2.0.0-arm64.dmg"
+scripts/verify-release.sh "dist/Typeless-Switch-1.0.0-arm64.dmg"
 ```
 
 验证器检查：
@@ -195,17 +195,17 @@ scripts/verify-release.sh "dist/Typeless-Toolkit-2.0.0-arm64.dmg"
 node --test
 
 xcodebuild \
-  -project macOS/TypelessToolkit.xcodeproj \
-  -scheme TypelessToolkit \
+  -project macOS/TypelessSwitch.xcodeproj \
+  -scheme TypelessSwitch \
   -destination 'platform=macOS,arch=arm64' \
-  -derivedDataPath /tmp/TypelessToolkitDerivedData \
+  -derivedDataPath /tmp/TypelessSwitchDerivedData \
   test
 
 xcodebuild \
-  -project macOS/TypelessToolkit.xcodeproj \
-  -scheme TypelessToolkit \
+  -project macOS/TypelessSwitch.xcodeproj \
+  -scheme TypelessSwitch \
   -destination 'platform=macOS,arch=arm64' \
-  -derivedDataPath /tmp/TypelessToolkitStrictDerivedData \
+  -derivedDataPath /tmp/TypelessSwitchStrictDerivedData \
   build \
   SWIFT_STRICT_CONCURRENCY=complete \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
@@ -215,7 +215,7 @@ scripts/package-dmg.sh
 scripts/verify-release.sh
 ```
 
-Node 安全集成测试需要监听 `127.0.0.1`。如果受限沙箱返回 `listen EPERM`，应在允许本机回环监听的终端重新执行，不能把该环境限制当成测试通过。
+Node 测试覆盖 sidecar 协议、运行数据、备份、任务、确认与发布准备。若受限环境阻止 Xcode 宏插件或本机 App 构建，应在允许 Xcode 执行宏插件的环境重新验证，不能把环境限制当成产品失败。
 
 ## 10. 首次打开未公证 App
 
@@ -229,14 +229,14 @@ Node 安全集成测试需要监听 `127.0.0.1`。如果受限沙箱返回 `list
 确认构建来源可信时，也可以移除隔离属性：
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/Typeless Toolkit.app"
+xattr -dr com.apple.quarantine "/Applications/Typeless Switch.app"
 ```
 
 这不会把 App 变成已公证软件，只会移除当前文件的下载隔离标记。
 
 ## Typeless 启动与权限归属
 
-Typeless Toolkit 必须通过 macOS LaunchServices 启动完整的 `Typeless.app`，不得直接执行
+Typeless Switch 必须通过 macOS LaunchServices 启动完整的 `Typeless.app`，不得直接执行
 `Contents/MacOS/Typeless`。直接执行内部二进制会让辅助功能或麦克风权限归到启动者，导致
 Typeless Onboarding 无法确认自身权限。
 
@@ -253,7 +253,7 @@ CDP 参数始终通过参数数组传递，对应命令为：
 系统设置 → 隐私与安全性 → 麦克风
 ```
 
-仅删除 Typeless Toolkit、Typeless 或 Terminal 的相关测试记录；不得删除整个 TCC 数据库，
+仅删除 Typeless Switch、Typeless 或 Terminal 的相关测试记录；不得删除整个 TCC 数据库，
 也不得让应用或脚本自动重置系统权限。
 
 如果“解除升级弹窗”功能重新签名了 `Typeless.app`，Typeless 的代码身份会发生变化，macOS

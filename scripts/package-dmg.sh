@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_PATH="$ROOT_DIR/dist/Typeless Toolkit.app"
+APP_PATH="$ROOT_DIR/dist/Typeless Switch.app"
 README_PATH="$ROOT_DIR/release/README-FIRST.txt"
 STAGING="$ROOT_DIR/build/dmg-staging"
 
@@ -20,18 +20,18 @@ if ! codesign --verify --deep --strict "$APP_PATH"; then
 fi
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")"
-DMG_NAME="Typeless-Toolkit-${VERSION}-arm64.dmg"
+DMG_NAME="Typeless-Switch-${VERSION}-arm64.dmg"
 DMG_PATH="$ROOT_DIR/dist/$DMG_NAME"
 
 rm -rf "$STAGING"
 mkdir -p "$STAGING"
-ditto "$APP_PATH" "$STAGING/Typeless Toolkit.app"
+ditto "$APP_PATH" "$STAGING/Typeless Switch.app"
 ln -s /Applications "$STAGING/Applications"
 install -m 0644 "$README_PATH" "$STAGING/README-FIRST.txt"
 rm -f "$DMG_PATH" "$DMG_PATH.sha256"
 
 hdiutil create \
-  -volname "Typeless Toolkit" \
+  -volname "Typeless Switch" \
   -srcfolder "$STAGING" \
   -format UDZO \
   -ov \

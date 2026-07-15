@@ -12,9 +12,6 @@
  *   - lib/common.js  syncAccount():
  *       const accountKeys = new Set(accountWords.map(termKey));
  *       const missing = masterMerged.filter(w => !accountKeys.has(termKey(w)));
- *   - manager.js     import-master / account->account 迁移:
- *       const have = new Set((dl.data?.words||[]).map(w => termKey(w.term)));
- *       const missing = master.filter(w => !have.has(termKey(w)));
  * syncAccount 本身要走 curlApi 真实网络请求,不能安全单测,故这里用同一套导出的
  * termKey 复刻其差集表达式,验证「大小写/空白不同但等价的词不会被当成缺失重复导入」。
  *
@@ -76,7 +73,7 @@ test('writeMaster 去重是大小写敏感的(与 termKey 归一化不同)', () 
 });
 
 // ---- 3. have/missing 差集:已存在的词不应被重复导入 ----
-// 复刻 syncAccount / import-master 的表达式(见文件顶部说明),用导出的 termKey。
+// 复刻 syncAccount 的表达式(见文件顶部说明),用导出的 termKey。
 
 function computeMissing(existingWords, candidateWords) {
   const have = new Set(existingWords.map(C.termKey));

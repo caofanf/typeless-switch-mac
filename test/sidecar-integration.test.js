@@ -65,7 +65,7 @@ test('stdio sidecar handshakes and shuts down without mixing protocol into stder
   const hello = JSON.parse(await waitForLine(child.stdout));
 
   assert.equal(hello.id, 'hello');
-  assert.equal(hello.result.protocol_name, 'typeless-toolkit-core');
+  assert.equal(hello.result.protocol_name, 'typeless-switch-core');
   assert.equal(hello.result.protocol_version, '1.0');
   assert.equal(hello.result.architecture, process.arch);
   assert.equal(hello.result.capabilities.includes('accounts.list'), true);

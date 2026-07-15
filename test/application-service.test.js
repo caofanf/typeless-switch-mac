@@ -144,7 +144,7 @@ test('backup.restore rejects a file changed after inspection', async t => {
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const source = path.join(dir, 'backup.json');
   fs.writeFileSync(source, JSON.stringify({
-    type: 'typeless-toolkit-macos-runtime-backup', version: 1, files: [],
+    type: 'typeless-switch-macos-runtime-backup', version: 1, files: [],
   }));
   const service = createApplicationService({ core: {
     restoreRuntimeBackupBundle: () => { throw new Error('must not restore changed input'); },

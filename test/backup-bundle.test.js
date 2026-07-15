@@ -111,7 +111,7 @@ function integrityEntries(files) {
 
 function writeRestoreManifestFixture(transactionDir, { phase, targets, original, expected }) {
   fs.writeFileSync(path.join(transactionDir, 'restore-manifest.json'), JSON.stringify({
-    type: 'typeless-toolkit-runtime-restore',
+    type: 'typeless-switch-runtime-restore',
     version: 1,
     transaction_id: path.basename(transactionDir),
     phase,
@@ -128,7 +128,7 @@ test('bundle 结构正确:type/version/files 齐全,涵盖 accounts + master + p
   seedRuntimeData();
   const bundle = C.createRuntimeBackupBundle();
 
-  assert.strictEqual(bundle.type, 'typeless-toolkit-macos-runtime-backup');
+  assert.strictEqual(bundle.type, 'typeless-switch-macos-runtime-backup');
   assert.strictEqual(bundle.version, 1);
   assert.ok(Array.isArray(bundle.files));
 
@@ -211,7 +211,7 @@ test('运行备份只在 staging 完整复制和校验后发布,并以内容摘�
   );
 
   const manifest = JSON.parse(fs.readFileSync(path.join(backupDir, 'manifest.json'), 'utf8'));
-  assert.strictEqual(manifest.type, 'typeless-toolkit-runtime-backup');
+  assert.strictEqual(manifest.type, 'typeless-switch-runtime-backup');
   assert.strictEqual(manifest.complete, true);
   assert.strictEqual(manifest.file_count, Object.keys(PROFILE_FILES).length + 2);
   assert.strictEqual(C.runtimeDataStatus().status, 'backed_up');
@@ -434,7 +434,7 @@ test('多个 committing 残留按 newest-first 恢复 before-image 链', () => {
 test('备份包缺少某个顶层目标时,成功恢复会以整代语义移除旧目标', () => {
   seedRuntimeData();
   const accountsOnly = {
-    type: 'typeless-toolkit-macos-runtime-backup',
+    type: 'typeless-switch-macos-runtime-backup',
     version: 1,
     files: [{
       path: 'accounts.json',
@@ -455,23 +455,23 @@ test('非法/未知备份包被拒:抛错且不破坏现有 profiles', () => {
   const cases = [
     { bundle: null, re: /类型不正确/, desc: 'null' },
     { bundle: { type: 'wrong', version: 1, files: [] }, re: /类型不正确/, desc: '类型错误' },
-    { bundle: { type: 'typeless-toolkit-macos-runtime-backup', version: 2, files: [] }, re: /版本/, desc: '版本不支持' },
-    { bundle: { type: 'typeless-toolkit-macos-runtime-backup', version: 1, files: 'x' }, re: /缺少 files/, desc: 'files 非数组' },
+    { bundle: { type: 'typeless-switch-macos-runtime-backup', version: 2, files: [] }, re: /版本/, desc: '版本不支持' },
+    { bundle: { type: 'typeless-switch-macos-runtime-backup', version: 1, files: 'x' }, re: /缺少 files/, desc: 'files 非数组' },
     {
-      bundle: { type: 'typeless-toolkit-macos-runtime-backup', version: 1, files: [{ path: '../evil', encoding: 'base64', content: '' }] },
+      bundle: { type: 'typeless-switch-macos-runtime-backup', version: 1, files: [{ path: '../evil', encoding: 'base64', content: '' }] },
       re: /非法路径/, desc: '路径穿越',
     },
     {
-      bundle: { type: 'typeless-toolkit-macos-runtime-backup', version: 1, files: [{ path: 'random.txt', encoding: 'base64', content: '' }] },
+      bundle: { type: 'typeless-switch-macos-runtime-backup', version: 1, files: [{ path: 'random.txt', encoding: 'base64', content: '' }] },
       re: /未知文件/, desc: '未知文件名',
     },
     {
-      bundle: { type: 'typeless-toolkit-macos-runtime-backup', version: 1, files: [{ path: 'accounts.json', encoding: 'base64', content: 'YQ' }] },
+      bundle: { type: 'typeless-switch-macos-runtime-backup', version: 1, files: [{ path: 'accounts.json', encoding: 'base64', content: 'YQ' }] },
       re: /base64 不合法/, desc: '非规范 base64',
     },
     {
       bundle: {
-        type: 'typeless-toolkit-macos-runtime-backup', version: 1,
+        type: 'typeless-switch-macos-runtime-backup', version: 1,
         files: [
           { path: 'accounts.json', encoding: 'base64', content: '' },
           { path: 'accounts.json', encoding: 'base64', content: '' },
@@ -481,7 +481,7 @@ test('非法/未知备份包被拒:抛错且不破坏现有 profiles', () => {
     },
     {
       bundle: {
-        type: 'typeless-toolkit-macos-runtime-backup', version: 1,
+        type: 'typeless-switch-macos-runtime-backup', version: 1,
         files: [
           { path: 'profiles/u-001', encoding: 'base64', content: '' },
           { path: 'profiles/u-001/user-data.json', encoding: 'base64', content: '' },

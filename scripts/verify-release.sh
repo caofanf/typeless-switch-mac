@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_PATH="$ROOT_DIR/dist/Typeless Toolkit.app"
+APP_PATH="$ROOT_DIR/dist/Typeless Switch.app"
 NODE_HELPER="$APP_PATH/Contents/Resources/Sidecar/node"
 SIDECAR_MAIN="$APP_PATH/Contents/Resources/Sidecar/sidecar/main.js"
 DMG_PATH="${1:-}"
@@ -26,7 +26,7 @@ require_arm64() {
   fi
 }
 
-require_arm64 "$APP_PATH/Contents/MacOS/Typeless Toolkit"
+require_arm64 "$APP_PATH/Contents/MacOS/Typeless Switch"
 require_arm64 "$NODE_HELPER"
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
@@ -55,7 +55,7 @@ SMOKE_OUTPUT="$(printf '%s\n%s\n' \
   '{"jsonrpc":"2.0","id":"bye","method":"core.shutdown","params":{}}' | \
   env TYPELESS_DATA_DIR="$SMOKE_DATA" "$NODE_HELPER" "$SIDECAR_MAIN" \
     --transport=stdio --parent-pid=$$)"
-if ! printf '%s\n' "$SMOKE_OUTPUT" | grep -q '"protocol_name":"typeless-toolkit-core"'; then
+if ! printf '%s\n' "$SMOKE_OUTPUT" | grep -q '"protocol_name":"typeless-switch-core"'; then
   echo "core.hello smoke test failed." >&2
   exit 68
 fi
@@ -66,7 +66,7 @@ fi
 
 if [[ -z "$DMG_PATH" ]]; then
   shopt -s nullglob
-  DMG_FILES=("$ROOT_DIR"/dist/Typeless-Toolkit-*-arm64.dmg)
+  DMG_FILES=("$ROOT_DIR"/dist/Typeless-Switch-*-arm64.dmg)
   shopt -u nullglob
   if [[ "${#DMG_FILES[@]}" -ne 1 ]]; then
     echo "Expected exactly one versioned arm64 DMG; pass its path explicitly." >&2
@@ -85,7 +85,7 @@ fi
 
 MOUNT_POINT="$(mktemp -d "${TMPDIR:-/tmp}/typeless-dmg-mount.XXXXXX")"
 hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT_POINT" "$DMG_PATH" >/dev/null
-if [[ ! -d "$MOUNT_POINT/Typeless Toolkit.app" || ! -L "$MOUNT_POINT/Applications" ]]; then
+if [[ ! -d "$MOUNT_POINT/Typeless Switch.app" || ! -L "$MOUNT_POINT/Applications" ]]; then
   echo "DMG does not contain the application and Applications link." >&2
   exit 69
 fi

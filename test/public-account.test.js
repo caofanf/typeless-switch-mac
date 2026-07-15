@@ -9,7 +9,7 @@ const path = require('path');
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'tt-public-account-'));
 process.env.TYPELESS_DATA_DIR = DATA_DIR;
 
-const { publicAccount, publicCapture, publicDictionary, publicLiveStatus, safeCount } = require('../manager');
+const { publicAccount, publicCapture, publicDictionary, publicLiveStatus, safeCount } = require('../lib/public-dto');
 
 after(() => fs.rmSync(DATA_DIR, { recursive: true, force: true }));
 

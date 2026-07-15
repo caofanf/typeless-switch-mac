@@ -5,8 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIGURATION="${CONFIGURATION:-Release}"
 DERIVED_DATA="$ROOT_DIR/build/DerivedData"
 SIDECAR_STAGE="$ROOT_DIR/build/Sidecar"
-BUILT_APP="$DERIVED_DATA/Build/Products/$CONFIGURATION/Typeless Toolkit.app"
-DIST_APP="$ROOT_DIR/dist/Typeless Toolkit.app"
+BUILT_APP="$DERIVED_DATA/Build/Products/$CONFIGURATION/Typeless Switch.app"
+DIST_APP="$ROOT_DIR/dist/Typeless Switch.app"
 
 if [[ "$(uname -m)" != "arm64" ]]; then
   echo "This build requires Apple Silicon (arm64)." >&2
@@ -24,8 +24,8 @@ mkdir -p "$SIDECAR_STAGE"
 "$ROOT_DIR/scripts/prepare-node-runtime.sh" "$SIDECAR_STAGE/node"
 
 xcodebuild \
-  -project "$ROOT_DIR/macOS/TypelessToolkit.xcodeproj" \
-  -scheme TypelessToolkit \
+  -project "$ROOT_DIR/macOS/TypelessSwitch.xcodeproj" \
+  -scheme TypelessSwitch \
   -configuration "$CONFIGURATION" \
   -derivedDataPath "$DERIVED_DATA" \
   ARCHS=arm64 \
@@ -49,7 +49,7 @@ install -m 0644 "$ROOT_DIR/release/THIRD_PARTY_NOTICES.md" \
 NODE_HELPER="$DIST_APP/Contents/Resources/Sidecar/node"
 codesign --force --sign - --timestamp=none "$NODE_HELPER"
 codesign --force --sign - --timestamp=none \
-  --entitlements "$ROOT_DIR/macOS/TypelessToolkit/TypelessToolkit.entitlements" \
+  --entitlements "$ROOT_DIR/macOS/TypelessSwitch/TypelessSwitch.entitlements" \
   "$DIST_APP"
 codesign --verify --deep --strict --verbose=2 "$DIST_APP"
 

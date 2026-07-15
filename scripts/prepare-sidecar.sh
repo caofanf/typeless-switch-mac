@@ -25,7 +25,6 @@ LIB_FILES=(
   application-service.js
   common.js
   core-errors.js
-  local-api-security.js
   operation-confirmations.js
   patch-transaction.js
   public-dto.js

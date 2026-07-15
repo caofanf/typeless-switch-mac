@@ -3,7 +3,7 @@
 const { createApplicationService } = require('../lib/application-service');
 const { TaskRunner } = require('../lib/task-runner');
 
-const PROTOCOL_NAME = 'typeless-toolkit-core';
+const PROTOCOL_NAME = 'typeless-switch-core';
 const PROTOCOL_VERSION = '1.0';
 const CORE_VERSION = '1.0.0';
 

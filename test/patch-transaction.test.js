@@ -83,7 +83,7 @@ function seedIncompleteTransaction({
     };
   });
   writeManifest(path.join(dir, 'manifest.json'), {
-    type: 'typeless-toolkit-patch-transaction',
+    type: 'typeless-switch-patch-transaction',
     version: 1,
     transaction_id: transactionId,
     label: 'paywall',
