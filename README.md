@@ -52,6 +52,36 @@ dist/Typeless-Switch-<version>-arm64.dmg.sha256
 
 Swift 只接收脱敏 DTO；账号 token、Cookie 和 profile 始终留在本机 Node sidecar 与运行数据目录。App 与 sidecar 通过 `stdin/stdout` 上的 JSON Lines / JSON-RPC 2.0 通信，不启动本地 HTTP 服务。
 
+## 常见问题与排查 (FAQ)
+
+### 点击“添加账号”失败 / 一直卡在“正在建立管理连接”？
+
+Typeless Switch 在添加账号或连接管理会话时，需要通过本机 `9222` 调试端口与 Typeless 客户端建立通信。
+
+如果点击“添加账号”后长时间停留在“正在建立管理连接”、反复弹窗或最后提示无法抓取，**最常见的原因是本机的 `9222` 端口已被其他 Electron / Chromium 应用（例如某些第三方设计工具、开发工具或开机自启常驻程序）抢占**，导致 Typeless 启动时静默放弃绑定调试端口。
+
+**排查与解决步骤：**
+
+1. 打开 macOS“终端（Terminal）”，检查当前是哪个进程占用了 `9222` 端口：
+   ```bash
+   lsof -i :9222
+   ```
+   > **提示**：macOS 系统服务字典中 `9222` 端口的标准注册名称常显示为 `teamcoherence`。若看到 `localhost:teamcoherence (LISTEN)`，即代表 9222 端口处于监听占用状态。
+
+2. 查看终端输出中的 `COMMAND`（应用名）与 `PID`（进程号）：
+   - 如果占用的进程**不是** `Typeless`（例如输出显示其他软件名称）：
+     ```text
+     COMMAND   PID  USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+     Ardot   18338 timgu   48u  IPv4 0x...          0t0  TCP localhost:teamcoherence (LISTEN)
+     ```
+   - 可以在系统的“活动监视器”中退出该冲突应用，或者直接在终端通过进程 PID 结束该进程以释放端口：
+     ```bash
+     kill -9 <PID>
+     # 例如：kill -9 18338
+     ```
+
+3. 端口释放后，确保 Typeless 已登录目标账号，回到 Typeless Switch 再次点击“添加账号”，即可瞬间完成连接与凭证抓取。
+
 ## 从源码构建
 
 先安装完整 Xcode，并完成首次初始化：
