@@ -5,7 +5,7 @@ const { TaskRunner } = require('../lib/task-runner');
 
 const PROTOCOL_NAME = 'typeless-switch-core';
 const PROTOCOL_VERSION = '1.0';
-const CORE_VERSION = '1.0.0';
+const CORE_VERSION = '1.1.0';
 
 function summarizeRecoveries(core) {
   const runtime = Array.isArray(core.INITIAL_RUNTIME_RESTORE_RECOVERY)
@@ -34,7 +34,10 @@ function createCommandRegistry(options = {}) {
   const taskRunner = options.taskRunner || new TaskRunner({
     emit: event => sendNotification({ jsonrpc: '2.0', ...event }),
   });
-  const applicationService = options.applicationService || createApplicationService({ core, taskRunner });
+  const applicationService = options.applicationService || createApplicationService({ core, taskRunner, rotation: options.rotation });
+  if (applicationService.rotation && typeof applicationService.rotation.start === 'function') {
+    applicationService.rotation.start();
+  }
 
   async function execute(method, params) {
     if (method === 'core.hello') {
@@ -50,6 +53,9 @@ function createCommandRegistry(options = {}) {
       };
     }
     if (method === 'core.shutdown') {
+      if (applicationService.rotation && typeof applicationService.rotation.stop === 'function') {
+        applicationService.rotation.stop();
+      }
       setImmediate(onShutdown);
       return { shutting_down: true };
     }

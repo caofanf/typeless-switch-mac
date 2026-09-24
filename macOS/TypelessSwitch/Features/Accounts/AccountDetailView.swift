@@ -101,6 +101,23 @@ struct AccountDetailView: View {
             if let usage = account.live?.usage {
                 VStack(spacing: 10) {
                     LabeledContent("本周字数", value: formattedWeeklyUsage(usage))
+                    if model.rotationSettings.enabled {
+                        Divider()
+                        LabeledContent("轮动配额") {
+                            let threshold = model.rotationSettings.wordThreshold
+                            let weeklyWords = Int(usage.weeklyWordUsage ?? 0)
+                            HStack(spacing: 6) {
+                                Text("\(weeklyWords) / \(threshold) 词")
+                                if weeklyWords >= threshold {
+                                    Text("已达上限").font(.caption).foregroundStyle(.red)
+                                } else if weeklyWords >= (threshold - model.rotationSettings.warningWords) {
+                                    Text("即将达标").font(.caption).foregroundStyle(.orange)
+                                } else {
+                                    Text("正常").font(.caption).foregroundStyle(.green)
+                                }
+                            }
+                        }
+                    }
                     Divider()
                     LabeledContent("累计字数", value: formattedNumber(usage.totalWords))
                     Divider()

@@ -33,6 +33,12 @@ final class MockCoreClient: CoreClientProtocol {
     var patchStatusValue = SystemOverview.empty.patch
     var versionStatusValue = SystemOverview.empty.version
     var restoreError: Error?
+    var rotationValue = RotationViewPayload(settings: .default, status: .disabled)
+    var onConfigureRotation: ((RotationSettings) -> Void)?
+    var onCheckRotationNow: (() -> Void)?
+    private(set) var rotationCallCount = 0
+    private(set) var configureRotationCallCount = 0
+    private(set) var checkRotationNowCallCount = 0
     var onDeleteWord: (() -> Void)?
     var onEstablishConnection: (() -> Void)?
     var onCaptureCurrentAccount: (() -> Void)?
@@ -200,6 +206,31 @@ final class MockCoreClient: CoreClientProtocol {
     func syncAllDictionaries() async throws -> CoreTask {
         syncAllCallCount += 1
         return syncTask
+    }
+
+    private(set) var invalidateRotationCallCount = 0
+
+    func rotation() async throws -> RotationViewPayload {
+        rotationCallCount += 1
+        return rotationValue
+    }
+
+    func configureRotation(_ settings: RotationSettings) async throws -> RotationViewPayload {
+        configureRotationCallCount += 1
+        onConfigureRotation?(settings)
+        rotationValue = RotationViewPayload(settings: settings, status: rotationValue.status)
+        return rotationValue
+    }
+
+    func checkRotationNow() async throws -> RotationViewPayload {
+        checkRotationNowCallCount += 1
+        onCheckRotationNow?()
+        return rotationValue
+    }
+
+    func invalidateRotation() async throws -> RotationViewPayload {
+        invalidateRotationCallCount += 1
+        return rotationValue
     }
 }
 

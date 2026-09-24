@@ -103,6 +103,71 @@ final class CoreClientTests: XCTestCase {
         }
     }
 
+    func testRotationPayloadDecodesSanitizedDTO() async throws {
+        let transport = MockRPCTransport(result: .object([
+            "settings": .object([
+                "enabled": .bool(true),
+                "mode": .string("auto"),
+                "word_threshold": .number(2000),
+                "warning_words": .number(100),
+                "interval_minutes": .number(15)
+            ]),
+            "status": .object([
+                "phase": .string("waiting"),
+                "message": .string("轮动正常运行"),
+                "current_user_id": .string("u1"),
+                "used_words": .number(1250),
+                "candidate_issues": .array([])
+            ])
+        ]))
+        let client = LiveCoreClient(transport: transport)
+
+        let payload = try await client.rotation()
+
+        XCTAssertTrue(payload.settings.enabled)
+        XCTAssertEqual(payload.settings.mode, .auto)
+        XCTAssertEqual(payload.settings.wordThreshold, 2000)
+        XCTAssertEqual(payload.settings.warningWords, 100)
+        XCTAssertEqual(payload.settings.intervalMinutes, 15)
+        XCTAssertEqual(payload.status.phase, .waiting)
+        XCTAssertEqual(payload.status.usedWords, 1250)
+        XCTAssertEqual(payload.status.currentUserId, "u1")
+        let lastMethod = await transport.lastMethod
+        XCTAssertEqual(lastMethod, "rotation.get")
+    }
+
+    func testConfigureRotationEncodesParametersAndDecodesPayload() async throws {
+        let transport = MockRPCTransport(result: .object([
+            "settings": .object([
+                "enabled": .bool(true),
+                "mode": .string("notify"),
+                "word_threshold": .number(2500),
+                "warning_words": .number(150),
+                "interval_minutes": .number(30)
+            ]),
+            "status": .object([
+                "phase": .string("waiting"),
+                "message": .string("配置已保存"),
+                "candidate_issues": .array([])
+            ])
+        ]))
+        let client = LiveCoreClient(transport: transport)
+        let settings = RotationSettings(
+            enabled: true,
+            mode: .notify,
+            wordThreshold: 2500,
+            warningWords: 150,
+            intervalMinutes: 30
+        )
+
+        let payload = try await client.configureRotation(settings)
+
+        XCTAssertTrue(payload.settings.enabled)
+        XCTAssertEqual(payload.settings.wordThreshold, 2500)
+        let lastMethod = await transport.lastMethod
+        XCTAssertEqual(lastMethod, "rotation.configure")
+    }
+
     private var diagnosticConnectionJSON: JSONValue {
         .object(["state": .string("disconnected"), "port": .number(9222), "cdp_reachable": .bool(false)])
     }

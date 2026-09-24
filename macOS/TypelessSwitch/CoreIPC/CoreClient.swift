@@ -41,6 +41,10 @@ protocol CoreClientProtocol: Sendable {
     func patchStatus() async throws -> PatchStatus
     func applyPatch(action: String, confirmationToken: String) async throws -> CoreTask
     func prepareOperation(method: String, params: JSONValue, summary: JSONValue) async throws -> Confirmation
+    func rotation() async throws -> RotationViewPayload
+    func configureRotation(_ settings: RotationSettings) async throws -> RotationViewPayload
+    func checkRotationNow() async throws -> RotationViewPayload
+    func invalidateRotation() async throws -> RotationViewPayload
     func close() async
 }
 
@@ -78,6 +82,10 @@ extension CoreClientProtocol {
     func deviceStatus() async throws -> DeviceStatus { try unavailable() }
     func resetDevice(confirmationToken: String) async throws -> CoreTask { try unavailable() }
     func patchStatus() async throws -> PatchStatus { try unavailable() }
+    func rotation() async throws -> RotationViewPayload { try unavailable() }
+    func configureRotation(_ settings: RotationSettings) async throws -> RotationViewPayload { try unavailable() }
+    func checkRotationNow() async throws -> RotationViewPayload { try unavailable() }
+    func invalidateRotation() async throws -> RotationViewPayload { try unavailable() }
     func applyPatch(action: String, confirmationToken: String) async throws -> CoreTask { try unavailable() }
     func prepareOperation(method: String, params: JSONValue, summary: JSONValue) async throws -> Confirmation { try unavailable() }
     func close() async {}
@@ -177,6 +185,25 @@ struct LiveCoreClient: CoreClientProtocol, Sendable {
     }
     func prepareOperation(method: String, params: JSONValue, summary: JSONValue) async throws -> Confirmation {
         try await call("operations.prepare", params: .object(["method": .string(method), "params": params, "summary": summary]))
+    }
+    func rotation() async throws -> RotationViewPayload {
+        try await call("rotation.get")
+    }
+    func configureRotation(_ settings: RotationSettings) async throws -> RotationViewPayload {
+        let params: JSONValue = .object([
+            "enabled": .bool(settings.enabled),
+            "mode": .string(settings.mode.rawValue),
+            "word_threshold": .number(Double(settings.wordThreshold)),
+            "warning_words": .number(Double(settings.warningWords)),
+            "interval_minutes": .number(Double(settings.intervalMinutes)),
+        ])
+        return try await call("rotation.configure", params: params)
+    }
+    func checkRotationNow() async throws -> RotationViewPayload {
+        try await call("rotation.checkNow")
+    }
+    func invalidateRotation() async throws -> RotationViewPayload {
+        try await call("rotation.invalidate")
     }
     func close() async { await transport.close() }
 

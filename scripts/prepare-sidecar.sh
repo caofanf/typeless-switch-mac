@@ -22,14 +22,19 @@ SIDECAR_FILES=(
   protocol.js
 )
 LIB_FILES=(
+  account-rotation.js
   application-service.js
   common.js
   core-errors.js
   operation-confirmations.js
   patch-transaction.js
+  private-fs.js
   public-dto.js
+  rotation-issues.js
+  rotation-notifier.js
   runtime-data.js
   task-runner.js
+  typeless-api.js
 )
 
 for file in "${SIDECAR_FILES[@]}"; do

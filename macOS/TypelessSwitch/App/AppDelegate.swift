@@ -11,6 +11,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     init(preferences: AppPreferences) {
+        UserDefaults.standard.register(defaults: [
+            "NSInitialToolTipDelay": 1000
+        ])
+        UserDefaults.standard.set(1000, forKey: "NSInitialToolTipDelay")
         self.preferences = preferences
         super.init()
     }

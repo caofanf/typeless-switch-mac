@@ -6,7 +6,7 @@ enum SidebarDestination: String, CaseIterable, Identifiable, Sendable {
     case accounts
     case masterDictionary
     case backupRestore
-    case overview
+    // case overview
     case settings
 
     var id: Self { self }
@@ -14,9 +14,9 @@ enum SidebarDestination: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .accounts: "账号"
-        case .masterDictionary: "主词库"
-        case .backupRestore: "备份与恢复"
-        case .overview: "概览"
+        case .masterDictionary: "词库"
+        case .backupRestore: "备份"
+        // case .overview: "概览"
         case .settings: "设置"
         }
     }
@@ -26,13 +26,14 @@ enum SidebarDestination: String, CaseIterable, Identifiable, Sendable {
         case .accounts: "person.2"
         case .masterDictionary: "text.book.closed"
         case .backupRestore: "externaldrive.badge.timemachine"
-        case .overview: "square.grid.2x2"
+        // case .overview: "square.grid.2x2"
         case .settings: "gearshape"
         }
     }
 }
 
 enum SettingsSection: Hashable, Sendable {
+    case rotation
     case advanced
 }
 
@@ -150,6 +151,10 @@ final class AppModel {
     private(set) var isRefreshingAdvancedTools = false
     private(set) var pendingAdvancedOperation: PendingAdvancedOperation?
     private(set) var isPerformingAdvancedOperation = false
+    private(set) var rotationSettings: RotationSettings = .default
+    private(set) var rotationStatus: RotationStatus = .disabled
+    private(set) var isRefreshingRotation = false
+    private(set) var isSavingRotationSettings = false
     private var dictionaryTaskIDsByAccount: [String: String] = [:]
 
     let preferences: AppPreferences
@@ -161,10 +166,11 @@ final class AppModel {
 
     init(
         coreClient: any CoreClientProtocol,
-        preferences: AppPreferences = .standard,
+        preferences: AppPreferences? = nil,
         activityStore: RecentActivityStore? = nil,
         notificationCenter: (any AppNotificationDelivering)? = nil
     ) {
+        let preferences = preferences ?? .standard
         self.coreClient = coreClient
         self.preferences = preferences
         self.activityStore = activityStore ?? RecentActivityStore(limit: preferences.recentActivityLimit)
@@ -175,6 +181,11 @@ final class AppModel {
     func handleAppBecameActive() async {
         guard preferences.refreshOnActivation else { return }
         await refreshOverview()
+    }
+
+    func navigateToRotationSettings() {
+        requestedSettingsSection = .rotation
+        selection = .settings
     }
 
     func navigateToAdvancedSettings() {
@@ -832,11 +843,63 @@ final class AppModel {
             accounts = latest.accounts
             connectionState = latest.connectionState
             activeTasks = latest.activeTasks
+            if let rot = latest.rotation {
+                rotationStatus = rot
+            }
             isStale = false
             lastErrorMessage = nil
         } catch {
             isStale = true
             lastErrorMessage = "无法刷新状态。请稍后重试。"
+        }
+    }
+
+    func loadRotation() async {
+        guard !isRefreshingRotation else { return }
+        isRefreshingRotation = true
+        defer { isRefreshingRotation = false }
+        do {
+            let payload = try await coreClient.rotation()
+            rotationSettings = payload.settings
+            rotationStatus = payload.status
+        } catch {
+            lastErrorMessage = "无法加载轮动设置。请稍后重试。"
+        }
+    }
+
+    func updateRotationSettings(_ settings: RotationSettings) async {
+        guard !isSavingRotationSettings else { return }
+        isSavingRotationSettings = true
+        defer { isSavingRotationSettings = false }
+        do {
+            let payload = try await coreClient.configureRotation(settings)
+            rotationSettings = payload.settings
+            rotationStatus = payload.status
+            activityStore.record(
+                title: "保存轮动设置",
+                detail: settings.enabled ? "已开启轮动（阈值 \(settings.wordThreshold) 词）" : "已关闭轮动",
+                kind: .information
+            )
+        } catch {
+            lastErrorMessage = "无法保存轮动设置。请检查参数后重试。"
+        }
+    }
+
+    func triggerRotationCheckNow() async {
+        guard !isRefreshingRotation else { return }
+        isRefreshingRotation = true
+        defer { isRefreshingRotation = false }
+        do {
+            let payload = try await coreClient.checkRotationNow()
+            rotationSettings = payload.settings
+            rotationStatus = payload.status
+            activityStore.record(
+                title: "轮动检查",
+                detail: payload.status.message,
+                kind: payload.status.phase == .error ? .failure : .information
+            )
+        } catch {
+            lastErrorMessage = "轮动检查失败。请检查连接与账号状态。"
         }
     }
 }

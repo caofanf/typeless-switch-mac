@@ -11,6 +11,20 @@ struct MenuBarContent: View {
             NSApp.activate(ignoringOtherApps: true)
         }
 
+        if model.rotationSettings.enabled {
+            Divider()
+
+            if let words = model.rotationStatus.usedWords {
+                Text("轮动用量: \(words) / \(model.rotationSettings.wordThreshold) 词")
+            }
+            Text("轮动状态: \(model.rotationStatus.phase.displayName)")
+
+            Button("立即检查轮动") {
+                Task { await model.triggerRotationCheckNow() }
+            }
+            .disabled(model.isRefreshingRotation)
+        }
+
         Divider()
 
         Button("刷新状态") {

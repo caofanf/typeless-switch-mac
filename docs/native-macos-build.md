@@ -156,15 +156,15 @@ README-FIRST.txt
 输出示例：
 
 ```text
-dist/Typeless-Switch-1.0.0-arm64.dmg
-dist/Typeless-Switch-1.0.0-arm64.dmg.sha256
+dist/Typeless-Switch-1.1.0-arm64.dmg
+dist/Typeless-Switch-1.1.0-arm64.dmg.sha256
 ```
 
 校验下载或复制后的镜像：
 
 ```bash
 cd dist
-shasum -a 256 -c Typeless-Switch-1.0.0-arm64.dmg.sha256
+shasum -a 256 -c Typeless-Switch-1.1.0-arm64.dmg.sha256
 ```
 
 ## 8. 发布验证
@@ -176,7 +176,7 @@ scripts/verify-release.sh
 如 `dist/` 中存在多个版本的 DMG，请显式传入路径：
 
 ```bash
-scripts/verify-release.sh "dist/Typeless-Switch-1.0.0-arm64.dmg"
+scripts/verify-release.sh "dist/Typeless-Switch-1.1.0-arm64.dmg"
 ```
 
 验证器检查：

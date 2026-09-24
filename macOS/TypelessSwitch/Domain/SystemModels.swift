@@ -106,9 +106,13 @@ struct SystemOverview: Codable, Equatable, Sendable {
     var version: VersionStatus
     var backup: BackupStatus
     var patch: PatchStatus
+    var rotation: RotationStatus?
     var activeTasks: [CoreTask]
 
-    enum CodingKeys: String, CodingKey { case connection, accounts, version, backup, patch; case activeTasks = "active_tasks" }
+    enum CodingKeys: String, CodingKey {
+        case connection, accounts, version, backup, patch, rotation
+        case activeTasks = "active_tasks"
+    }
     var connectionState: ConnectionState { connection.state }
     var accountCount: Int { accounts.count }
     var activeTaskCount: Int { activeTasks.count }
@@ -119,6 +123,7 @@ struct SystemOverview: Codable, Equatable, Sendable {
         version: .init(current: nil, lastSeen: nil, drifted: false, recordedAt: nil),
         backup: .init(status: .noData, backedUp: false, hasData: false, sources: [], latestDataModifiedAt: nil, latestBackup: nil, backupDirectory: "", backupPath: nil),
         patch: .init(exists: false, patched: nil, detectedFile: nil, filePath: nil, replacementsSource: nil, hasBackup: nil, error: nil),
+        rotation: .disabled,
         activeTasks: []
     )
 }
@@ -206,3 +211,130 @@ struct DiagnosticReport: Codable, Equatable, Sendable {
     let backup: BackupStatus
     let patch: PatchStatus
 }
+
+enum RotationMode: String, Codable, Sendable, CaseIterable {
+    case notify
+    case auto
+
+    var title: String {
+        switch self {
+        case .notify: return "弹窗提醒"
+        case .auto: return "自动切换"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .notify: return "用量达到提醒线时弹出系统确认框，由你决定切换或稍后"
+        case .auto: return "用量达到阈值后直接自动切换到下一个可用账号并同步词库"
+        }
+    }
+}
+
+enum RotationPhase: String, Codable, Sendable {
+    case disabled
+    case waiting
+    case checking
+    case prompting
+    case switching
+    case paused
+    case error
+
+    var title: String {
+        switch self {
+        case .disabled: return "未开启"
+        case .waiting: return "等待检查"
+        case .checking: return "检查中"
+        case .prompting: return "等待确认"
+        case .switching: return "正在切号"
+        case .paused: return "已暂停"
+        case .error: return "异常"
+        }
+    }
+
+    var displayName: String { title }
+}
+
+struct RotationSettings: Codable, Equatable, Sendable {
+    var enabled: Bool
+    var mode: RotationMode
+    var wordThreshold: Int
+    var warningWords: Int
+    var intervalMinutes: Int
+
+    enum CodingKeys: String, CodingKey {
+        case enabled, mode
+        case wordThreshold = "word_threshold"
+        case warningWords = "warning_words"
+        case intervalMinutes = "interval_minutes"
+    }
+
+    static let `default` = RotationSettings(
+        enabled: false,
+        mode: .notify,
+        wordThreshold: 2000,
+        warningWords: 100,
+        intervalMinutes: 15
+    )
+}
+
+struct RotationIssue: Codable, Equatable, Sendable, Identifiable {
+    var code: String
+    var message: String
+    var action: String
+    var accountId: String?
+    var retryable: Bool
+
+    var id: String {
+        if let accountId { return "\(code):\(accountId)" }
+        return code
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case code, message, action, retryable
+        case accountId = "account_id"
+    }
+}
+
+struct RotationStatus: Codable, Equatable, Sendable {
+    var phase: RotationPhase
+    var message: String
+    var lastCheckAt: Date?
+    var nextCheckAt: Date?
+    var currentUserId: String?
+    var usedWords: Int?
+    var lastResult: String?
+    var issue: RotationIssue?
+    var candidateIssues: [RotationIssue]
+    var notificationError: String?
+
+    enum CodingKeys: String, CodingKey {
+        case phase, message, issue
+        case lastCheckAt = "last_check_at"
+        case nextCheckAt = "next_check_at"
+        case currentUserId = "current_user_id"
+        case usedWords = "used_words"
+        case lastResult = "last_result"
+        case candidateIssues = "candidate_issues"
+        case notificationError = "notification_error"
+    }
+
+    static let disabled = RotationStatus(
+        phase: .disabled,
+        message: "账号轮动未开启",
+        lastCheckAt: nil,
+        nextCheckAt: nil,
+        currentUserId: nil,
+        usedWords: nil,
+        lastResult: nil,
+        issue: nil,
+        candidateIssues: [],
+        notificationError: nil
+    )
+}
+
+struct RotationViewPayload: Codable, Equatable, Sendable {
+    var settings: RotationSettings
+    var status: RotationStatus
+}
+

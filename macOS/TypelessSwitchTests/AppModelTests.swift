@@ -39,7 +39,7 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.selection, .accounts)
         XCTAssertEqual(
             SidebarDestination.allCases,
-            [.accounts, .masterDictionary, .backupRestore, .overview, .settings]
+            [.accounts, .masterDictionary, .backupRestore, .settings]
         )
         XCTAssertEqual(model.connectionState, .disconnected)
     }
@@ -570,6 +570,114 @@ final class AppModelTests: XCTestCase {
             store.record(title: "活动 \(index)", detail: nil, kind: .information)
         }
         XCTAssertEqual(store.activities.count, 25)
+    }
+
+    func testLoadRotationUpdatesRotationSettingsAndStatus() async {
+        let client = MockCoreClient()
+        let settings = RotationSettings(
+            enabled: true,
+            mode: .auto,
+            wordThreshold: 3000,
+            warningWords: 200,
+            intervalMinutes: 10
+        )
+        let status = RotationStatus(
+            phase: .waiting,
+            message: "等待检查用量",
+            lastCheckAt: nil,
+            nextCheckAt: nil,
+            currentUserId: "u1",
+            usedWords: 1500,
+            lastResult: nil,
+            issue: nil,
+            candidateIssues: [],
+            notificationError: nil
+        )
+        client.rotationValue = RotationViewPayload(settings: settings, status: status)
+        let model = AppModel(coreClient: client)
+
+        await model.loadRotation()
+
+        XCTAssertEqual(client.rotationCallCount, 1)
+        XCTAssertEqual(model.rotationSettings.enabled, true)
+        XCTAssertEqual(model.rotationSettings.mode, .auto)
+        XCTAssertEqual(model.rotationSettings.wordThreshold, 3000)
+        XCTAssertEqual(model.rotationStatus.phase, .waiting)
+        XCTAssertEqual(model.rotationStatus.usedWords, 1500)
+    }
+
+    func testUpdateRotationSettingsCallsCoreClientAndRecordsActivity() async {
+        let client = MockCoreClient()
+        let store = RecentActivityStore(defaults: isolatedDefaults())
+        let model = AppModel(coreClient: client, activityStore: store)
+        let targetSettings = RotationSettings(
+            enabled: true,
+            mode: .notify,
+            wordThreshold: 2000,
+            warningWords: 100,
+            intervalMinutes: 15
+        )
+
+        await model.updateRotationSettings(targetSettings)
+
+        XCTAssertEqual(client.configureRotationCallCount, 1)
+        XCTAssertEqual(model.rotationSettings.enabled, true)
+        XCTAssertEqual(model.rotationSettings.wordThreshold, 2000)
+        XCTAssertEqual(model.recentActivities.first?.title, "保存轮动设置")
+        XCTAssertTrue(model.recentActivities.first?.detail?.contains("2000") ?? false)
+    }
+
+    func testTriggerRotationCheckNowUpdatesStatusAndRecordsActivity() async {
+        let client = MockCoreClient()
+        let store = RecentActivityStore(defaults: isolatedDefaults())
+        let model = AppModel(coreClient: client, activityStore: store)
+        let checkedStatus = RotationStatus(
+            phase: .prompting,
+            message: "当前账号本周词数已达 2000 词，建议切换",
+            lastCheckAt: Date(),
+            nextCheckAt: nil,
+            currentUserId: "u1",
+            usedWords: 2050,
+            lastResult: "达到阈值",
+            issue: nil,
+            candidateIssues: [],
+            notificationError: nil
+        )
+        client.rotationValue = RotationViewPayload(settings: .default, status: checkedStatus)
+
+        await model.triggerRotationCheckNow()
+
+        XCTAssertEqual(client.checkRotationNowCallCount, 1)
+        XCTAssertEqual(model.rotationStatus.phase, .prompting)
+        XCTAssertEqual(model.rotationStatus.usedWords, 2050)
+        XCTAssertEqual(model.recentActivities.first?.title, "轮动检查")
+        XCTAssertEqual(model.recentActivities.first?.detail, "当前账号本周词数已达 2000 词，建议切换")
+    }
+
+    func testRefreshOverviewSyncsRotationStatus() async {
+        let client = MockCoreClient()
+        var overview = makeOverview()
+        let rotationStatus = RotationStatus(
+            phase: .waiting,
+            message: "轮动正常运行",
+            lastCheckAt: Date(),
+            nextCheckAt: nil,
+            currentUserId: "u1",
+            usedWords: 800,
+            lastResult: nil,
+            issue: nil,
+            candidateIssues: [],
+            notificationError: nil
+        )
+        overview.rotation = rotationStatus
+        client.overview = overview
+        let model = AppModel(coreClient: client)
+
+        await model.refreshOverview()
+
+        XCTAssertEqual(model.rotationStatus.phase, .waiting)
+        XCTAssertEqual(model.rotationStatus.usedWords, 800)
+        XCTAssertEqual(model.rotationStatus.message, "轮动正常运行")
     }
 
     private func isolatedDefaults() -> UserDefaults {

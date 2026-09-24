@@ -55,8 +55,15 @@ struct AccountsView: View {
 
     private var accountList: some View {
         VStack(spacing: 0) {
+            if model.rotationSettings.enabled {
+                rotationBanner
+            }
+
             List(model.filteredAccounts, selection: $model.selectedAccountID) { account in
-                AccountRow(account: account)
+                AccountRow(
+                    account: account,
+                    isRotationActive: account.id == model.rotationStatus.currentUserId
+                )
                     .tag(account.id)
                     .contextMenu {
                         Button("保存快照") {
@@ -94,6 +101,40 @@ struct AccountsView: View {
         .background(.background)
     }
 
+    private var rotationBanner: some View {
+        Button {
+            model.navigateToRotationSettings()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.caption)
+                    .foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text("自动轮动")
+                            .font(.caption.bold())
+                        Text("· \(model.rotationStatus.phase.displayName)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let words = model.rotationStatus.usedWords {
+                        Text("当前已用: \(words) / \(model.rotationSettings.wordThreshold) 词")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.quaternary.opacity(0.5))
+        }
+        .buttonStyle(.plain)
+    }
+
     @ViewBuilder
     private var detail: some View {
         if let id = model.selectedAccountID,
@@ -111,17 +152,37 @@ struct AccountsView: View {
 
 private struct AccountRow: View {
     let account: Account
+    var isRotationActive: Bool = false
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "person.crop.circle.fill")
-                .font(.title2)
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
+            ZStack(alignment: .bottomTrailing) {
+                Image(systemName: "person.crop.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+                if isRotationActive {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 8, height: 8)
+                        .overlay(Circle().stroke(Color(nsColor: .windowBackgroundColor), lineWidth: 1.5))
+                }
+            }
             VStack(alignment: .leading, spacing: 2) {
-                Text(account.nickname.isEmpty ? "未命名账号" : account.nickname)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(account.nickname.isEmpty ? "未命名账号" : account.nickname)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                    if isRotationActive {
+                        Text("当前")
+                            .font(.system(size: 9, weight: .bold))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.green.opacity(0.15))
+                            .foregroundStyle(Color.green)
+                            .clipShape(Capsule())
+                    }
+                }
                 Text(account.email.isEmpty ? account.id : account.email)
                     .font(.caption)
                     .foregroundStyle(.secondary)

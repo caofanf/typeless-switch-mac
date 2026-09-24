@@ -42,6 +42,10 @@ struct TypelessSwitchApp: App {
     private let runtime: AppRuntime
 
     init() {
+        UserDefaults.standard.register(defaults: [
+            "NSInitialToolTipDelay": 1000
+        ])
+        UserDefaults.standard.set(1000, forKey: "NSInitialToolTipDelay")
         let preferences = AppPreferences.standard
         let runtime = AppRuntime.bundled(preferences: preferences)
         self.runtime = runtime
